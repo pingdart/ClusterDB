@@ -15,7 +15,7 @@ pub async fn run_benchmark() {
     executor.execute("CREATE DATABASE bench", None).unwrap();
     let setup_sql = r#"
         CREATE TABLE bench_users (
-            id STRING PRIMARY,
+            id STRING PRIMARY KEY,
             name STRING,
             age INTEGER,
             city STRING

@@ -75,6 +75,24 @@ impl StorageEngine {
         Ok(results)
     }
 
+    /// Gets raw (key, value) bytes from a specific table for high-speed consistent snapshots
+    pub fn get_raw_pairs(&self, table: &str) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        let tree = self.db.open_tree(table)?;
+        let mut results = Vec::new();
+        for item in tree.iter() {
+            let (key, bytes) = item?;
+            results.push((key.to_vec(), bytes.to_vec()));
+        }
+        Ok(results)
+    }
+
+    /// Inserts raw (key, value) bytes directly into a table
+    pub fn insert_raw(&self, table: &str, key: &[u8], bytes: &[u8]) -> Result<()> {
+        let tree = self.db.open_tree(table)?;
+        tree.insert(key, bytes)?;
+        Ok(())
+    }
+
     pub fn iter<T: for<'de> Deserialize<'de>>(&self, table: &str) -> Result<impl Iterator<Item = Result<T>>> {
         let tree = self.db.open_tree(table)?;
         let iter = tree.into_iter().map(|res| {

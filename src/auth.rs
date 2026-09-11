@@ -22,6 +22,12 @@ pub struct User {
     pub token: Option<String>,
     pub allowed_ip: String, // "%" for any, or specific IP like "192.168.1.5"
     pub roles: Vec<Role>,
+    #[serde(default)]
+    pub rbac_roles: Vec<String>,
+    #[serde(default)]
+    pub assigned_tenants: Vec<String>,
+    #[serde(default)]
+    pub is_service_account: bool,
 }
 
 impl User {
@@ -32,6 +38,9 @@ impl User {
             token: None,
             allowed_ip: "%".to_string(),
             roles: vec![Role::MainAdmin],
+            rbac_roles: vec!["SuperAdmin".to_string()],
+            assigned_tenants: vec!["default".to_string()],
+            is_service_account: false,
         }
     }
 
@@ -42,7 +51,30 @@ impl User {
             token: None,
             allowed_ip,
             roles,
+            rbac_roles: Vec::new(),
+            assigned_tenants: vec!["default".to_string()],
+            is_service_account: false,
         }
+    }
+
+    pub fn new_service_account(username: String, rbac_roles: Vec<String>, tenant_id: Option<String>) -> Self {
+        Self {
+            username: username.clone(),
+            password_hash: hash_password(&uuid::Uuid::new_v4().to_string()),
+            token: None,
+            allowed_ip: "%".to_string(),
+            roles: vec![],
+            rbac_roles,
+            assigned_tenants: tenant_id.into_iter().collect(),
+            is_service_account: true,
+        }
+    }
+
+    pub fn has_rbac_role(&self, role_name: &str) -> bool {
+        if self.roles.contains(&Role::MainAdmin) || self.rbac_roles.iter().any(|r| r == "SuperAdmin") {
+            return true;
+        }
+        self.rbac_roles.iter().any(|r| r == role_name)
     }
 
     pub fn verify_password(&self, password: &str) -> bool {

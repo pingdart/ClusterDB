@@ -1,0 +1,96 @@
+{
+  "scale_label": "10k",
+  "total_rows": 10000,
+  "concurrency": 8,
+  "oltp_inserts": {
+    "workload_name": "OLTP Concurrent Inserts",
+    "total_operations": 10000,
+    "successful_operations": 10000,
+    "failed_operations": 0,
+    "elapsed_seconds": 88.284028,
+    "qps": 113.2707719226404,
+    "percentiles": {
+      "p50_ms": 8.933709,
+      "p90_ms": 12.062833,
+      "p95_ms": 12.987166,
+      "p99_ms": 14.926125,
+      "p99_9_ms": 25.240041,
+      "min_ms": 1.318959,
+      "max_ms": 83.442625,
+      "mean_ms": 8.826375980200009,
+      "std_dev_ms": 2.9888199239966977
+    }
+  },
+  "oltp_lookups": {
+    "workload_name": "OLTP Point Lookups",
+    "total_operations": 500,
+    "successful_operations": 500,
+    "failed_operations": 0,
+    "elapsed_seconds": 0.005707584,
+    "qps": 87602.74049405142,
+    "percentiles": {
+      "p50_ms": 0.011,
+      "p90_ms": 0.011417,
+      "p95_ms": 0.011667,
+      "p99_ms": 0.013459,
+      "p99_9_ms": 0.107458,
+      "min_ms": 0.010542,
+      "max_ms": 0.107458,
+      "mean_ms": 0.011289268000000033,
+      "std_dev_ms": 0.004378478303723338
+    }
+  },
+  "vector_hnsw": {
+    "workload_name": "HNSW Vector Proximity Search",
+    "total_operations": 50,
+    "successful_operations": 50,
+    "failed_operations": 0,
+    "elapsed_seconds": 0.057276208,
+    "qps": 872.9628190469592,
+    "percentiles": {
+      "p50_ms": 0.969542,
+      "p90_ms": 1.394083,
+      "p95_ms": 1.904333,
+      "p99_ms": 3.124333,
+      "p99_9_ms": 3.124333,
+      "min_ms": 0.709208,
+      "max_ms": 3.124333,
+      "mean_ms": 1.05633992,
+      "std_dev_ms": 0.40613986709845856
+    }
+  },
+  "columnar_olap": {
+    "workload_name": "Vectorized Columnar OLAP",
+    "total_operations": 30,
+    "successful_operations": 30,
+    "failed_operations": 0,
+    "elapsed_seconds": 0.09451125,
+    "qps": 317.4225290640003,
+    "percentiles": {
+      "p50_ms": 3.061584,
+      "p90_ms": 4.026125,
+      "p95_ms": 5.728125,
+      "p99_ms": 5.728125,
+      "p99_9_ms": 5.728125,
+      "min_ms": 2.487042,
+      "max_ms": 5.728125,
+      "mean_ms": 3.150290333333333,
+      "std_dev_ms": 0.6481195017636966
+    }
+  },
+  "storage": {
+    "total_disk_bytes": 8388670,
+    "total_disk_mb": 8.000059127807617,
+    "estimated_waf": 6.5536484375,
+    "total_keys": 10000
+  },
+  "calibrated_weights": {
+    "cost_per_1k_seq_scan_ms": 9.451125000000001,
+    "cost_btree_lookup_ms": 0.011289268000000033,
+    "cost_vector_dist_calc_ms": 0.017898815000000002,
+    "cost_columnar_agg_chunk_ms": 9.451125000000001,
+    "cost_network_hop_ms": 1.2,
+    "timestamp_epoch_secs": 1789072192
+  },
+  "elapsed_total_secs": 88.952680958
+}

@@ -1,4 +1,7 @@
-/target
+target/
+**/target/
 /pingdart_data
 *.pg
 .DS_Store
+*.log
+

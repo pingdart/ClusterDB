@@ -255,10 +255,14 @@ if __name__ == "__main__":
     
     token = test_login()
     time.sleep(0.5) # Slight delay for safety
+
+    # Clean up previous test database runs
+    requests.post(f"{BASE_URL}/query", json={"token": token, "query": f"DROP DATABASE {DB_NAME}"})
+    requests.post(f"{BASE_URL}/query", json={"token": token, "query": "DROP DATABASE imported_db"})
     
     try:
-        test_multi_statement(token)
         test_sql_api(token)
+        test_multi_statement(token)
         test_document_api(token)
         test_join_api(token)
         test_bulk_insert(token)
