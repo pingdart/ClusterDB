@@ -1,0 +1,10 @@
+# Autonomous Repair Patch for bug_003
+# Subsystem: src/server.rs
+# Confidence: 90%
+# Cause: The error or crash occurred due to a missing return statement in the match block. The match block is expected to return a value, but it is missing a return statement, which is likely the cause of the error.
+
+--- a/src/server.rs
++++ b/src/server.rs
+@@ 100,2 +100,4 @@
+- unwrap()
++ match res { Ok(v) => return v, Err(_) => return (StatusCode::BAD_REQUEST) }

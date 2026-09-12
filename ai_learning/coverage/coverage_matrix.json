@@ -1,0 +1,420 @@
+{
+  "GET /": {
+    "endpoint": "/",
+    "method": "GET",
+    "category": "System",
+    "description": "Engine Capabilities & Status",
+    "calls": 1,
+    "status_codes": {
+      "200": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /login": {
+    "endpoint": "/login",
+    "method": "POST",
+    "category": "Auth",
+    "description": "Admin & User Session Login",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /query": {
+    "endpoint": "/query",
+    "method": "POST",
+    "category": "Core SQL",
+    "description": "Relational SQL Query Execution",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /document/query": {
+    "endpoint": "/document/query",
+    "method": "POST",
+    "category": "Document",
+    "description": "NoSQL Document Filter Query",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /database/export": {
+    "endpoint": "/database/export",
+    "method": "POST",
+    "category": "Data",
+    "description": "JSON Database Export",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /database/import": {
+    "endpoint": "/database/import",
+    "method": "POST",
+    "category": "Data",
+    "description": "JSON Database Import",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /index/create": {
+    "endpoint": "/index/create",
+    "method": "POST",
+    "category": "Index",
+    "description": "Secondary BTree/Bitmap Index Creation",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /index/drop": {
+    "endpoint": "/index/drop",
+    "method": "POST",
+    "category": "Index",
+    "description": "Secondary Index Drop",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /index/list": {
+    "endpoint": "/index/list",
+    "method": "POST",
+    "category": "Index",
+    "description": "Catalog Secondary Indexes",
+    "calls": 1,
+    "status_codes": {
+      "200": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /index/stats": {
+    "endpoint": "/index/stats",
+    "method": "POST",
+    "category": "Index",
+    "description": "Index Depth & Cardinality Stats",
+    "calls": 1,
+    "status_codes": {
+      "200": 1
+    },
+    "last_tested": "2026-09-12 07:58:33Z"
+  },
+  "POST /vector/search": {
+    "endpoint": "/vector/search",
+    "method": "POST",
+    "category": "Vector",
+    "description": "HNSW Cosine Vector Search",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /search/text": {
+    "endpoint": "/search/text",
+    "method": "POST",
+    "category": "Search",
+    "description": "BM25 Full-Text Search",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /search/hybrid": {
+    "endpoint": "/search/hybrid",
+    "method": "POST",
+    "category": "Search",
+    "description": "Reciprocal Rank Hybrid Search",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /ai/memory/store": {
+    "endpoint": "/ai/memory/store",
+    "method": "POST",
+    "category": "Cognitive AI",
+    "description": "Episodic & Working Memory Store",
+    "calls": 1,
+    "status_codes": {
+      "200": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /ai/memory/recall": {
+    "endpoint": "/ai/memory/recall",
+    "method": "POST",
+    "category": "Cognitive AI",
+    "description": "Semantic Memory Recall",
+    "calls": 1,
+    "status_codes": {
+      "200": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /ai/memory/consolidate": {
+    "endpoint": "/ai/memory/consolidate",
+    "method": "POST",
+    "category": "Cognitive AI",
+    "description": "Sleep-Cycle Memory Consolidation",
+    "calls": 1,
+    "status_codes": {
+      "200": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /graph/node": {
+    "endpoint": "/graph/node",
+    "method": "POST",
+    "category": "Graph",
+    "description": "Labeled Property Graph Node Create",
+    "calls": 1,
+    "status_codes": {
+      "200": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /graph/edge": {
+    "endpoint": "/graph/edge",
+    "method": "POST",
+    "category": "Graph",
+    "description": "Directed Graph Edge Relationship",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /graph/path": {
+    "endpoint": "/graph/path",
+    "method": "POST",
+    "category": "Graph",
+    "description": "Shortest Path BFS Graph Traversal",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /graph/neighbors": {
+    "endpoint": "/graph/neighbors",
+    "method": "POST",
+    "category": "Graph",
+    "description": "1-Hop & N-Hop Graph Neighbor Query",
+    "calls": 1,
+    "status_codes": {
+      "422": 1
+    },
+    "last_tested": "2026-09-12 08:02:21Z"
+  },
+  "POST /cdc/replay": {
+    "endpoint": "/cdc/replay",
+    "method": "POST",
+    "category": "CDC",
+    "description": "Durable CDC Commit Log Stream",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "GET /cluster/status": {
+    "endpoint": "/cluster/status",
+    "method": "GET",
+    "category": "Cluster",
+    "description": "Raft Cluster Topology & Leader Info",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /cluster/join": {
+    "endpoint": "/cluster/join",
+    "method": "POST",
+    "category": "Cluster",
+    "description": "Join Cluster Seed Node",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /cluster/shard/vector_search": {
+    "endpoint": "/cluster/shard/vector_search",
+    "method": "POST",
+    "category": "Cluster",
+    "description": "Distributed Scatter-Gather Vector Search",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /raft/request_vote": {
+    "endpoint": "/raft/request_vote",
+    "method": "POST",
+    "category": "Raft",
+    "description": "Raft Consensus Election Vote",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /raft/append_entries": {
+    "endpoint": "/raft/append_entries",
+    "method": "POST",
+    "category": "Raft",
+    "description": "Raft Log Replication Heartbeat",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /tenant/create": {
+    "endpoint": "/tenant/create",
+    "method": "POST",
+    "category": "Multi-Tenant",
+    "description": "Tenant Isolation & Quota Provisioning",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /tenant/list": {
+    "endpoint": "/tenant/list",
+    "method": "POST",
+    "category": "Multi-Tenant",
+    "description": "Active Tenants List",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /tenant/policy": {
+    "endpoint": "/tenant/policy",
+    "method": "POST",
+    "category": "Multi-Tenant",
+    "description": "Tenant Storage & Compute Quota",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /tenant/rls": {
+    "endpoint": "/tenant/rls",
+    "method": "POST",
+    "category": "Multi-Tenant",
+    "description": "Row-Level Security Tenant Filter",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "GET /metrics": {
+    "endpoint": "/metrics",
+    "method": "GET",
+    "category": "Observability",
+    "description": "Prometheus Metrics Endpoint",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "GET /health/live": {
+    "endpoint": "/health/live",
+    "method": "GET",
+    "category": "Observability",
+    "description": "K8s Liveness Probe",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "GET /health/ready": {
+    "endpoint": "/health/ready",
+    "method": "GET",
+    "category": "Observability",
+    "description": "K8s Readiness Probe",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "GET /observability/traces": {
+    "endpoint": "/observability/traces",
+    "method": "GET",
+    "category": "Observability",
+    "description": "OpenTelemetry Trace Spans List",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "GET /observability/slow_queries": {
+    "endpoint": "/observability/slow_queries",
+    "method": "GET",
+    "category": "Observability",
+    "description": "Slow Query Log Telemetry",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /backup/snapshot": {
+    "endpoint": "/backup/snapshot",
+    "method": "POST",
+    "category": "Backup",
+    "description": "Point-in-Time Snapshot Creation",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /backup/restore": {
+    "endpoint": "/backup/restore",
+    "method": "POST",
+    "category": "Backup",
+    "description": "Snapshot Disaster Recovery Restore",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /backup/pitr": {
+    "endpoint": "/backup/pitr",
+    "method": "POST",
+    "category": "Backup",
+    "description": "CDC-Replayed Point-in-Time Recovery",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /backup/export": {
+    "endpoint": "/backup/export",
+    "method": "POST",
+    "category": "Backup",
+    "description": "Protobuf ZSTD Encrypted Export",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /backup/import": {
+    "endpoint": "/backup/import",
+    "method": "POST",
+    "category": "Backup",
+    "description": "Protobuf ZSTD Encrypted Import",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "POST /security/apikey/create": {
+    "endpoint": "/security/apikey/create",
+    "method": "POST",
+    "category": "Security",
+    "description": "Scoped Live API Key Generation",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  },
+  "GET /security/role/list": {
+    "endpoint": "/security/role/list",
+    "method": "GET",
+    "category": "Security",
+    "description": "Granular RBAC Role Definitions",
+    "calls": 0,
+    "status_codes": {},
+    "last_tested": null
+  }
+}

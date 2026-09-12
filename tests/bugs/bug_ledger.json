@@ -1,0 +1,30 @@
+[
+  {
+    "bug_id": "BUG-2026-0001",
+    "layer": "Layer 7: Red Team AI",
+    "title": "Security vulnerability: Stacked Query Attack ('; DROP TABLE users; --) succeeded!",
+    "query": "SELECT * FROM users; DROP TABLE users; --",
+    "error": "Attack succeeded with output: [\n  {\n    \"users.id\": \"1\",\n    \"users.secret\": \"alice_pass_xyz\",\n    \"username\": \"alice\",\n    \"id\": \"1\",\n    \"secret\": \"alice_pass_xyz\",\n    \"users.username\": \"alice\"\n  },\n  {\n    \"users.secret\": \"bob_pass_123\",\n    \"secret\": \"bob_pass_123\",\n    \"users.username\": \"bob\",\n    \"username\": \"bob\",\n    \"users.id\": \"2\",\n    \"id\": \"2\"\n  }\n]\nTable(s) dropped successfully",
+    "timestamp": "2026-09-12 07:36:55",
+    "repro_steps": [
+      "USE sec_red_db;",
+      "SELECT * FROM users; DROP TABLE users; --"
+    ],
+    "status": "OPEN",
+    "test_file": "test_bug_2026_0001.py"
+  },
+  {
+    "bug_id": "BUG-2026-0002",
+    "layer": "Layer 7: Red Team AI",
+    "title": "Security vulnerability: Stacked Query Attack ('; DROP TABLE users; --) succeeded!",
+    "query": "SELECT * FROM users; DROP TABLE users; --",
+    "error": "Attack succeeded with output: [\n  {\n    \"id\": \"1\",\n    \"users.secret\": \"alice_pass_xyz\",\n    \"users.id\": \"1\",\n    \"secret\": \"alice_pass_xyz\",\n    \"username\": \"alice\",\n    \"users.username\": \"alice\"\n  },\n  {\n    \"users.secret\": \"bob_pass_123\",\n    \"username\": \"bob\",\n    \"id\": \"2\",\n    \"users.id\": \"2\",\n    \"users.username\": \"bob\",\n    \"secret\": \"bob_pass_123\"\n  }\n]\nTable(s) dropped successfully",
+    "timestamp": "2026-09-12 07:38:38",
+    "repro_steps": [
+      "USE sec_red_db;",
+      "SELECT * FROM users; DROP TABLE users; --"
+    ],
+    "status": "OPEN",
+    "test_file": "test_bug_2026_0002.py"
+  }
+]

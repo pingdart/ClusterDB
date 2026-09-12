@@ -1,0 +1,226 @@
+[
+  {
+    "pattern": "User Lifecycle Failure: Deleted User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 7,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:12:54Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Admin User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 6,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:12:54Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: API User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 7,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:13:54Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Admin User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 5,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:13:54Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Expired User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 6,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:15Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Blocked User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 7,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:15Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: API User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 6,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:15Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Corrupted User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 5,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:15Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Tenant User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 8,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:15Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Expired User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 6,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:18Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Deleted User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 6,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:19Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Fake User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 5,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:21Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Blocked User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 4,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:22Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Tenant User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 3,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:24Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: ReadOnly User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 6,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:26Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Fake User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 6,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:27Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Blocked User on Login",
+    "layer": "UserLifecycle",
+    "times_seen": 4,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:30Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Invalid User on Tenant Change",
+    "layer": "UserLifecycle",
+    "times_seen": 4,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:36Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: ReadOnly User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 3,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:36:38Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Admin User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 1,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:03Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Corrupted User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 2,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:05Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Fake User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 1,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:06Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Invalid User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 2,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:06Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Blocked User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 3,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:09Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Deleted User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 2,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:12Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Expired User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 1,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:24Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Invalid User on Create",
+    "layer": "UserLifecycle",
+    "times_seen": 1,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:42:44Z"
+  },
+  {
+    "pattern": "User Lifecycle Failure: Tenant User on Role Change",
+    "layer": "UserLifecycle",
+    "times_seen": 1,
+    "severity": "medium",
+    "new_test_generated": true,
+    "discovered_at": "2026-09-12 02:43:01Z"
+  }
+]

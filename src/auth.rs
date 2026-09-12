@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
 
-fn hash_password(password: &str) -> String {
+pub fn hash_password(password: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(password.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -81,11 +81,29 @@ impl User {
         self.password_hash == hash_password(password)
     }
 
-    pub fn verify_ip(&self, ip: &str) -> bool {
-        if self.allowed_ip == "%" {
-            return true;
+    pub fn verify_ip(&self, client_ip: &str) -> bool {
+        let clean_client = client_ip.trim();
+        for pattern in self.allowed_ip.split(',') {
+            let p = pattern.trim();
+            if p == "%" || p == "*" || p.is_empty() {
+                return true;
+            }
+            if p.eq_ignore_ascii_case("localhost") {
+                if clean_client == "127.0.0.1" || clean_client == "::1" || clean_client.eq_ignore_ascii_case("localhost") {
+                    return true;
+                }
+            }
+            if p == clean_client {
+                return true;
+            }
+            if p.ends_with('%') || p.ends_with('*') {
+                let prefix = &p[..p.len() - 1];
+                if clean_client.starts_with(prefix) {
+                    return true;
+                }
+            }
         }
-        self.allowed_ip == ip
+        false
     }
 
     #[allow(dead_code)]

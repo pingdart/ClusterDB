@@ -1043,19 +1043,34 @@ impl Executor {
         if q_lower.starts_with("create user ") {
             let parts: Vec<&str> = query.trim().split_whitespace().collect();
             // Expected: CREATE USER username PASSWORD pass [IP %]
+            // Or MySQL style: CREATE USER 'username'@'host' PASSWORD pass
             if parts.len() >= 5 && parts[3].to_lowercase() == "password" {
-                let username = parts[2].to_string();
-                let password = parts[4].to_string();
-                
+                let raw_ident = parts[2].trim_matches(';').trim_matches('\'').trim_matches('"');
+                let mut username = raw_ident.to_string();
                 let mut allowed_ip = "%".to_string();
-                if parts.len() >= 7 && parts[5].to_lowercase() == "ip" {
-                    allowed_ip = parts[6].to_string();
+
+                if let Some(at_idx) = raw_ident.find('@') {
+                    username = raw_ident[..at_idx].trim_matches('\'').trim_matches('"').to_string();
+                    let host_val = raw_ident[at_idx + 1..].trim_matches('\'').trim_matches('"');
+                    if !host_val.is_empty() {
+                        allowed_ip = host_val.to_string();
+                    }
                 }
 
-                let user = crate::auth::User::new_user(username.clone(), password, allowed_ip, vec![]);
+                let password = parts[4].trim_matches(';').trim_matches('\'').trim_matches('"').to_string();
+                
+                if parts.len() >= 7 && (parts[5].to_lowercase() == "ip" || parts[5].to_lowercase() == "host") {
+                    allowed_ip = parts[6].trim_matches(';').trim_matches('\'').trim_matches('"').to_string();
+                }
+
+                if username.is_empty() || username.contains(":::") || username.contains('\0') {
+                    return Err(anyhow!("Invalid username: illegal symbols"));
+                }
+
+                let user = crate::auth::User::new_user(username.clone(), password, allowed_ip.clone(), vec![]);
                 self.storage.set("_users", &username, &user)?;
                 self.storage.flush()?;
-                return Ok(format!("User '{}' created successfully", username));
+                return Ok(format!("User '{}'@'{}' created successfully", username, allowed_ip));
             }
         }
 
@@ -1086,7 +1101,12 @@ impl Executor {
         if q_lower.starts_with("drop user ") {
             let parts: Vec<&str> = query.trim().split_whitespace().collect();
             if parts.len() >= 3 {
-                let username = parts[2];
+                let raw_ident = parts[2].trim_matches(';').trim_matches('\'').trim_matches('"');
+                let username = if let Some(at_idx) = raw_ident.find('@') {
+                    raw_ident[..at_idx].trim_matches('\'').trim_matches('"')
+                } else {
+                    raw_ident
+                };
                 self.storage.delete("_users", username)?;
                 self.storage.flush()?;
                 return Ok(format!("User '{}' dropped successfully", username));
@@ -1095,22 +1115,33 @@ impl Executor {
 
         if q_lower.starts_with("alter user ") {
             let parts: Vec<&str> = query.trim().split_whitespace().collect();
-            if parts.len() >= 5 && parts[3].to_lowercase() == "password" {
-                let username = parts[2].to_string();
-                let new_password = parts[4].to_string();
-                
-                if let Ok(Some(user)) = self.storage.get::<crate::auth::User>("_users", &username) {
-                    let updated_user = crate::auth::User::new_user(
-                        username.clone(), 
-                        new_password, 
-                        user.allowed_ip.clone(), 
-                        user.roles.clone()
-                    );
-                    self.storage.set("_users", &username, &updated_user)?;
-                    self.storage.flush()?;
-                    return Ok(format!("User '{}' password changed successfully", username));
+            if parts.len() >= 4 {
+                let raw_ident = parts[2].trim_matches(';').trim_matches('\'').trim_matches('"');
+                let username = if let Some(at_idx) = raw_ident.find('@') {
+                    raw_ident[..at_idx].trim_matches('\'').trim_matches('"').to_string()
                 } else {
-                    return Err(anyhow::anyhow!("User '{}' not found", username));
+                    raw_ident.to_string()
+                };
+
+                if let Ok(Some(mut user)) = self.storage.get::<crate::auth::User>("_users", &username) {
+                    if let Some(pwd_idx) = parts.iter().position(|&p| p.eq_ignore_ascii_case("password")) {
+                        if parts.len() > pwd_idx + 1 {
+                            let new_pwd = parts[pwd_idx + 1].trim_matches(';').trim_matches('\'').trim_matches('"');
+                            user.password_hash = crate::auth::hash_password(new_pwd);
+                        }
+                    }
+                    if let Some(ip_idx) = parts.iter().position(|&p| p.eq_ignore_ascii_case("ip") || p.eq_ignore_ascii_case("host")) {
+                        if parts.len() > ip_idx + 1 {
+                            let new_ip = parts[ip_idx + 1].trim_matches(';').trim_matches('\'').trim_matches('"');
+                            user.allowed_ip = new_ip.to_string();
+                        }
+                    }
+
+                    self.storage.set("_users", &username, &user)?;
+                    self.storage.flush()?;
+                    return Ok(format!("User '{}' updated successfully (allowed IP: '{}')", username, user.allowed_ip));
+                } else {
+                    return Err(anyhow!("User '{}' not found", username));
                 }
             }
         }
@@ -1124,8 +1155,13 @@ impl Executor {
             if let (Some(on_pos), Some(to_pos)) = (on_idx, to_idx) {
                 if on_pos > 1 && to_pos > on_pos + 1 && parts.len() > to_pos + 1 {
                     let perm = parts[1..on_pos].join(" ").to_uppercase();
-                    let db_name = parts[on_pos + 1].to_string();
-                    let username = parts[to_pos + 1].to_string();
+                    let db_name = parts[on_pos + 1].trim_matches(';').trim_matches('\'').trim_matches('"').to_string();
+                    let raw_user = parts[to_pos + 1].trim_matches(';').trim_matches('\'').trim_matches('"');
+                    let username = if let Some(at_idx) = raw_user.find('@') {
+                        raw_user[..at_idx].trim_matches('\'').trim_matches('"').to_string()
+                    } else {
+                        raw_user.to_string()
+                    };
 
                     if let Ok(Some(mut user)) = self.storage.get::<crate::auth::User>("_users", &username) {
                         let role = if perm == "ALL" || perm == "ALL PRIVILEGES" {
@@ -1138,13 +1174,13 @@ impl Executor {
                             crate::auth::Role::DatabaseAdmin(db_name.clone())
                         };
                     
-                    user.roles.push(role);
-                    self.storage.set("_users", &username, &user)?;
-                    self.storage.flush()?;
-                    return Ok(format!("Granted {} on {} to {}", perm, db_name, username));
-                } else {
-                    return Err(anyhow::anyhow!("User '{}' not found", username));
-                }
+                        user.roles.push(role);
+                        self.storage.set("_users", &username, &user)?;
+                        self.storage.flush()?;
+                        return Ok(format!("Granted {} on {} to {}", perm, db_name, username));
+                    } else {
+                        return Err(anyhow!("User '{}' not found", username));
+                    }
                 }
             }
         }

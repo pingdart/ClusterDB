@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-09-12 07:58:41Z",
+    "epoch": 1789180121.5547147,
+    "rss_mb": 54.79,
+    "threads": 25,
+    "open_handles": 120,
+    "storage_mb": 3.5,
+    "cpu_pct": 0.0
+  },
+  {
+    "timestamp": "2026-09-12 08:02:29Z",
+    "epoch": 1789180349.1279423,
+    "rss_mb": 56.22,
+    "threads": 26,
+    "open_handles": 128,
+    "storage_mb": 3.5,
+    "cpu_pct": 0.0
+  }
+]

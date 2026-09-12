@@ -1,0 +1,10 @@
+# Autonomous Repair Patch for bug_005
+# Subsystem: src/server.rs
+# Confidence: 90%
+# Cause: The Admin User is trying to change the tenant of a user, but the system is not correctly handling the result of the operation. The match statement is expecting a Result type, but it's getting an Ok type. This could be due to a bug in the system or a misunderstanding of the API.
+
+--- a/src/server.rs
++++ b/src/server.rs
+@@ 100,2 +100,4 @@
+- unwrap()
++ match res { Ok(v) => v, Err(_) => return StatusCode::BAD_REQUEST }

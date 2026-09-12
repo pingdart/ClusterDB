@@ -77,8 +77,12 @@ async fn main() -> Result<()> {
 
     // Initialize root user with default password (admin / admin123)
     let root_user = auth::User::new_root("admin123".to_string());
-    // Only set if not exists, so we don't overwrite on reboot
-    if db.get::<auth::User>("_users", "admin")?.is_none() {
+    // Only set if not exists or incompatible schema, so we don't crash on reboot
+    let need_init_root = match db.get::<auth::User>("_users", "admin") {
+        Ok(Some(_)) => false,
+        _ => true,
+    };
+    if need_init_root {
         db.set("_users", &root_user.username, &root_user)?;
         info!("Root user initialized with default credentials");
     }

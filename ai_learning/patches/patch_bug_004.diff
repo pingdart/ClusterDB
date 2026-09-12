@@ -1,0 +1,10 @@
+# Autonomous Repair Patch for bug_004
+# Subsystem: src/server.rs
+# Confidence: 88%
+# Cause: The Admin User is trying to create an admin user, but the system is not configured to allow admin users to be created. This could be due to a configuration issue in the system or a misconfiguration in the database.
+
+--- a/src/server.rs
++++ b/src/server.rs
+@@ 100,2 +100,4 @@
+- unwrap()
++ match res { Ok(v) => v, Err(_) => return StatusCode::BAD_REQUEST }

@@ -1,0 +1,10 @@
+# Autonomous Repair Patch for bug_001
+# Subsystem: src/server.rs
+# Confidence: 88%
+# Cause: The issue arises from the fact that the deleted user is trying to access a resource that no longer exists. This is a common error when a user is deleted, and the system attempts to access a resource that no longer exists. The proposed patch changes the code to return a 400 Bad Request status code when the user is not found. This is a common error and should be handled in the application layer.
+
+--- a/src/server.rs
++++ b/src/server.rs
+@@ 100,2 +100,4 @@
+- unwrap()
++ match res { Ok(v) => v, Err(_) => return StatusCode::BAD_REQUEST }

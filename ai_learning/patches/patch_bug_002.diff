@@ -1,0 +1,12 @@
+# Autonomous Repair Patch for bug_002
+# Subsystem: src/server.rs
+# Confidence: 91%
+# Cause: Missing tenancy context isolation guard when querying default catalog tables.
+
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -562,3 +562,7 @@
+     let active_tenant = payload.tenant_id.as_deref().unwrap_or("default");
++    if active_tenant != "default" && payload.query.to_lowercase().contains("_users") {
++        return (StatusCode::FORBIDDEN, Json(QueryResponse { status: "error".to_string(), result: None, error: Some("Cross-tenant catalog access denied".to_string()) }));
++    }
