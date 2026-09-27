@@ -6,3 +6,7 @@ target/
 *.log
 __pycache__/
 *.pyc
+/backups/*
+!/backups/.gitkeep
+pingdart_backups*
+

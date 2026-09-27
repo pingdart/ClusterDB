@@ -25,6 +25,10 @@ impl StorageEngine {
         Ok(Self { db })
     }
 
+    pub fn db(&self) -> &sled::Db {
+        &self.db
+    }
+
     pub fn tree_names(&self) -> Vec<String> {
         self.db.tree_names()
             .into_iter()

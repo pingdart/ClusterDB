@@ -1,0 +1,18 @@
+{
+  "watch": [
+    "src",
+    "Cargo.toml"
+  ],
+  "ext": "rs,html,toml",
+  "ignore": [
+    "pingdart_data/*",
+    "backups/*",
+    "target/*",
+    "*.log",
+    "*.pg",
+    "tests/*",
+    "ai_learning/*"
+  ],
+  "delay": "300",
+  "exec": "cargo run --bin pingdart-core"
+}

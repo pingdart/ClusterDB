@@ -53,6 +53,87 @@ pub struct TableSchema {
     pub columns: Vec<ColumnDef>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LegacyColumnDef {
+    pub name: String,
+    pub data_type: String,
+    pub is_primary: bool,
+    pub auto_increment: bool,
+    pub is_unique: bool,
+    pub is_not_null: bool,
+    pub default_value: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LegacyTableSchema {
+    pub name: String,
+    pub columns: Vec<LegacyColumnDef>,
+}
+
+impl TableSchema {
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self> {
+        if let Ok(schema) = bincode::deserialize::<TableSchema>(bytes) {
+            return Ok(schema);
+        }
+        if let Ok(legacy) = bincode::deserialize::<LegacyTableSchema>(bytes) {
+            return Ok(TableSchema {
+                name: legacy.name,
+                columns: legacy.columns.into_iter().map(|c| ColumnDef {
+                    name: c.name,
+                    data_type: c.data_type,
+                    is_primary: c.is_primary,
+                    auto_increment: c.auto_increment,
+                    is_unique: c.is_unique,
+                    is_not_null: c.is_not_null,
+                    default_value: c.default_value,
+                    generated_from: None,
+                    using_model: None,
+                }).collect(),
+            });
+        }
+        if let Ok(schema) = serde_json::from_slice::<TableSchema>(bytes) {
+            return Ok(schema);
+        }
+        Err(anyhow!("Failed to deserialize TableSchema"))
+    }
+}
+
+impl RowData {
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self> {
+        if let Ok(row) = bincode::deserialize::<RowData>(bytes) {
+            return Ok(row);
+        }
+        #[derive(Deserialize)]
+        struct LegacyRowDataV0 {
+            #[serde(default)]
+            columns: HashMap<String, String>,
+        }
+        if let Ok(legacy) = bincode::deserialize::<LegacyRowDataV0>(bytes) {
+            return Ok(RowData {
+                columns: legacy.columns,
+                ..Default::default()
+            });
+        }
+        if let Ok(cols) = bincode::deserialize::<HashMap<String, String>>(bytes) {
+            return Ok(RowData {
+                columns: cols,
+                ..Default::default()
+            });
+        }
+        if let Ok(row) = serde_json::from_slice::<RowData>(bytes) {
+            return Ok(row);
+        }
+        if let Ok(cols) = serde_json::from_slice::<HashMap<String, String>>(bytes) {
+            return Ok(RowData {
+                columns: cols,
+                ..Default::default()
+            });
+        }
+        Err(anyhow!("Failed to deserialize row data"))
+    }
+}
+
+
 #[derive(Clone, Debug)]
 enum EvalVal {
     Str(String),
@@ -735,6 +816,72 @@ impl Executor {
         }
     }
 
+    pub fn get_table_schema(&self, full_table_name: &str) -> Result<Option<TableSchema>> {
+        let tree = self.storage.db().open_tree("_schemas")?;
+        if let Some(bytes) = tree.get(full_table_name.as_bytes())? {
+            let schema = TableSchema::try_from_bytes(&bytes)?;
+            // Auto-upgrade in storage so future reads are modern
+            let _ = self.storage.set("_schemas", full_table_name, &schema);
+            Ok(Some(schema))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_all_table_schemas(&self) -> Result<Vec<TableSchema>> {
+        let tree = self.storage.db().open_tree("_schemas")?;
+        let mut list = Vec::new();
+        for item in tree.iter() {
+            if let Ok((key, bytes)) = item {
+                if let Ok(schema) = TableSchema::try_from_bytes(&bytes) {
+                    if let Ok(k) = String::from_utf8(key.to_vec()) {
+                        let _ = self.storage.set("_schemas", &k, &schema);
+                    }
+                    list.push(schema);
+                }
+            }
+        }
+        Ok(list)
+    }
+
+    pub fn get_row(&self, table: &str, key: &str) -> Result<Option<RowData>> {
+        let tree = self.storage.db().open_tree(table)?;
+        if let Some(bytes) = tree.get(key.as_bytes())? {
+            let row = RowData::try_from_bytes(&bytes)?;
+            Ok(Some(row))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_rows(&self, table: &str) -> Result<Vec<RowData>> {
+        let tree = self.storage.db().open_tree(table)?;
+        let mut results = Vec::new();
+        for item in tree.iter() {
+            if let Ok((_, bytes)) = item {
+                if let Ok(row) = RowData::try_from_bytes(&bytes) {
+                    results.push(row);
+                }
+            }
+        }
+        Ok(results)
+    }
+
+    pub fn get_rows_with_keys(&self, table: &str) -> Result<Vec<(String, RowData)>> {
+        let tree = self.storage.db().open_tree(table)?;
+        let mut results = Vec::new();
+        for item in tree.iter() {
+            if let Ok((key, bytes)) = item {
+                if let Ok(row) = RowData::try_from_bytes(&bytes) {
+                    if let Ok(k) = String::from_utf8(key.to_vec()) {
+                        results.push((k, row));
+                    }
+                }
+            }
+        }
+        Ok(results)
+    }
+
     pub fn execute(&self, query: &str, current_db: Option<&str>) -> Result<String> {
         self.execute_with_tenant(query, current_db, Some("default"))
     }
@@ -1146,6 +1293,24 @@ impl Executor {
             }
         }
 
+        if q_lower.starts_with("show users") {
+            let user_keys = self.storage.get_keys_by_prefix("_users", "")?;
+            let mut user_list = Vec::new();
+            for username in user_keys {
+                if let Ok(Some(user)) = self.storage.get::<crate::auth::User>("_users", &username) {
+                    let roles_str: Vec<String> = user.roles.iter().map(|r| format!("{:?}", r)).collect();
+                    user_list.push(serde_json::json!({
+                        "User": user.username,
+                        "Host": user.allowed_ip,
+                        "Roles": roles_str,
+                        "RBAC": user.rbac_roles,
+                        "ServiceAccount": user.is_service_account
+                    }));
+                }
+            }
+            return Ok(serde_json::to_string_pretty(&user_list)?);
+        }
+
         if q_lower.starts_with("grant ") {
             let parts: Vec<&str> = query.trim().split_whitespace().collect();
             
@@ -1178,6 +1343,39 @@ impl Executor {
                         self.storage.set("_users", &username, &user)?;
                         self.storage.flush()?;
                         return Ok(format!("Granted {} on {} to {}", perm, db_name, username));
+                    } else {
+                        return Err(anyhow!("User '{}' not found", username));
+                    }
+                }
+            }
+        }
+
+        if q_lower.starts_with("revoke ") {
+            let parts: Vec<&str> = query.trim().split_whitespace().collect();
+            let on_idx = parts.iter().position(|&r| r.eq_ignore_ascii_case("on"));
+            let from_idx = parts.iter().position(|&r| r.eq_ignore_ascii_case("from"));
+            
+            if let (Some(on_pos), Some(from_pos)) = (on_idx, from_idx) {
+                if on_pos > 1 && from_pos > on_pos + 1 && parts.len() > from_pos + 1 {
+                    let perm = parts[1..on_pos].join(" ").to_uppercase();
+                    let db_name = parts[on_pos + 1].trim_matches(';').trim_matches('\'').trim_matches('"').to_string();
+                    let raw_user = parts[from_pos + 1].trim_matches(';').trim_matches('\'').trim_matches('"');
+                    let username = if let Some(at_idx) = raw_user.find('@') {
+                        raw_user[..at_idx].trim_matches('\'').trim_matches('"').to_string()
+                    } else {
+                        raw_user.to_string()
+                    };
+
+                    if let Ok(Some(mut user)) = self.storage.get::<crate::auth::User>("_users", &username) {
+                        user.roles.retain(|r| match r {
+                            crate::auth::Role::MainAdmin => false,
+                            crate::auth::Role::DatabaseAdmin(db) => db != &db_name,
+                            crate::auth::Role::ReadWrite(db) => db != &db_name,
+                            crate::auth::Role::ReadOnly(db) => db != &db_name,
+                        });
+                        self.storage.set("_users", &username, &user)?;
+                        self.storage.flush()?;
+                        return Ok(format!("Revoked {} permissions on {} from {}", perm, db_name, username));
                     } else {
                         return Err(anyhow!("User '{}' not found", username));
                     }
@@ -1294,7 +1492,10 @@ impl Executor {
         }
 
         if q_lower.starts_with("show databases") {
-            let dbs = self.storage.get_keys_by_prefix("_databases", "")?;
+            let mut dbs = self.storage.get_keys_by_prefix("_databases", "")?;
+            if !dbs.contains(&"default".to_string()) {
+                dbs.insert(0, "default".to_string());
+            }
             let json = serde_json::to_string_pretty(&dbs)?;
             return Ok(json);
         }
@@ -1310,8 +1511,8 @@ impl Executor {
                 for full_table in full_tables {
                     let table_name = full_table.strip_prefix(&prefix).unwrap_or(&full_table).to_string();
                     
-                    let schema_opt: Option<TableSchema> = self.storage.get("_schemas", &full_table)?;
-                    let rows: Vec<RowData> = self.storage.get_all(&full_table)?;
+                    let schema_opt = self.get_table_schema(&full_table)?;
+                    let rows = self.get_rows(&full_table)?;
                     
                     let mut table_obj = serde_json::Map::new();
                     if let Some(schema) = schema_opt {
@@ -1396,7 +1597,7 @@ impl Executor {
             let name = clean_ident(rest.trim_matches(';'));
 
             // Safety guard: check if any active table schema depends on this model
-            let schemas = self.storage.get_all::<TableSchema>("_schemas")?;
+            let schemas = self.get_all_table_schemas()?;
             for s in schemas {
                 for c in &s.columns {
                     if c.using_model.as_deref() == Some(&name) {
@@ -1415,7 +1616,7 @@ impl Executor {
                 let table_name = clean_ident(parts[2]);
                 let full_table_name = format!("{}_{}", current_db.unwrap_or("public"), table_name);
 
-                let schema_opt: Option<TableSchema> = self.storage.get("_schemas", &full_table_name)?;
+                let schema_opt = self.get_table_schema(&full_table_name)?;
                 let mut schema = schema_opt.ok_or_else(|| anyhow!("Table '{}' does not exist", table_name))?;
 
                 let gen_col_idx = schema.columns.iter().position(|c| c.generated_from.is_some())
@@ -1441,7 +1642,7 @@ impl Executor {
 
                 let _ = self.vector_manager.get_or_create_index(&full_table_name, &target_vec_col, dim, crate::vector::types::VectorMetric::Cosine);
 
-                let rows = self.storage.get_all_with_keys::<RowData>(&full_table_name)?;
+                let rows = self.get_rows_with_keys(&full_table_name)?;
                 let mut count = 0;
                 for (key, mut row) in rows {
                     if let Some(src_text) = row.columns.get(&source_col) {
@@ -1585,7 +1786,7 @@ impl Executor {
                 let full_table_name = format!("{}_{}", db_prefix, table);
                 
                 // Fetch schema to validate
-                let schema_opt: Option<TableSchema> = self.storage.get("_schemas", &full_table_name)?;
+                let schema_opt = self.get_table_schema(&full_table_name)?;
                 let schema = schema_opt.ok_or_else(|| anyhow!("Table {} does not exist", table))?;
                 
                 let mut inserted_count = 0;
@@ -1677,7 +1878,7 @@ impl Executor {
                             }
                             
                             if !unique_cols.is_empty() {
-                                let all_rows = self.storage.get_all_with_keys::<RowData>(&full_table_name)?;
+                                let all_rows = self.get_rows_with_keys(&full_table_name)?;
                                 for (_, existing_row) in all_rows {
                                     for uc in &unique_cols {
                                         if let (Some(new_val), Some(exist_val)) = (row.columns.get(uc), existing_row.columns.get(uc)) {
@@ -1758,7 +1959,7 @@ impl Executor {
                 let table_name = clean_ident(&table.relation.to_string());
                 let full_table_name = format!("{}_{}", db_prefix, table_name);
                 
-                let schema_opt: Option<TableSchema> = self.storage.get("_schemas", &full_table_name)?;
+                let schema_opt = self.get_table_schema(&full_table_name)?;
                 let schema = schema_opt.ok_or_else(|| anyhow!("Table {} does not exist", table_name))?;
                 let pk_col = schema.columns.iter().find(|c| c.is_primary).map(|c| c.name.clone());
 
@@ -1816,7 +2017,7 @@ impl Executor {
                     }
                     
                     if !unique_cols.is_empty() {
-                        let all_rows = self.storage.get_all_with_keys::<RowData>(&full_table_name)?;
+                        let all_rows = self.get_rows_with_keys(&full_table_name)?;
                         for (k, existing_row) in all_rows {
                             if k != key {
                                 for uc in &unique_cols {
@@ -1870,12 +2071,12 @@ impl Executor {
                 };
 
                 if is_pk_lookup {
-                    if let Some(mut row) = self.storage.get::<RowData>(&full_table_name, &search_val)? {
+                    if let Some(mut row) = self.get_row(&full_table_name, &search_val)? {
                         apply_assignments(&search_val, &mut row)?;
                     }
                 } else {
                     let eval_ctx = EvalContext { schema: Some(&schema), embedding_manager: Some(&self.embedding_manager) };
-                    let rows = self.storage.get_all_with_keys::<RowData>(&full_table_name)?;
+                    let rows = self.get_rows_with_keys(&full_table_name)?;
                     for (key, mut row) in rows {
                         let mut is_match = true;
                         if let Some(selection_expr) = &selection {
@@ -1910,7 +2111,7 @@ impl Executor {
                 };
                 let full_table_name = format!("{}_{}", db_prefix, table_name);
                 
-                let schema_opt: Option<TableSchema> = self.storage.get("_schemas", &full_table_name)?;
+                let schema_opt = self.get_table_schema(&full_table_name)?;
                 let schema = schema_opt.ok_or_else(|| anyhow!("Table {} does not exist", table_name))?;
                 let pk_col = schema.columns.iter().find(|c| c.is_primary).map(|c| c.name.clone());
 
@@ -1978,12 +2179,12 @@ impl Executor {
                 };
 
                 if is_pk_lookup {
-                    if let Ok(Some(row)) = self.storage.get::<RowData>(&full_table_name, &search_val) {
+                    if let Ok(Some(row)) = self.get_row(&full_table_name, &search_val) {
                         apply_delete(&search_val, &row);
                     }
                 } else {
                     let eval_ctx = EvalContext { schema: Some(&schema), embedding_manager: Some(&self.embedding_manager) };
-                    let rows = self.storage.get_all_with_keys::<RowData>(&full_table_name)?;
+                    let rows = self.get_rows_with_keys(&full_table_name)?;
                     for (key, row) in rows {
                         let mut is_match = true;
                         if let Some(selection_expr) = &selection {
@@ -2025,7 +2226,7 @@ impl Executor {
                         
                         let full_base_table = format!("{}_{}", db_prefix, base_table_name);
                         
-                        let base_schema_opt = self.storage.get::<TableSchema>("_schemas", &full_base_table)?;
+                        let base_schema_opt = self.get_table_schema(&full_base_table)?;
                         let base_schema = base_schema_opt.ok_or_else(|| anyhow!("Table {} does not exist", base_table_name))?;
 
                         // Vectorized Columnar Analytics Dispatch for OLAP aggregations
@@ -2094,7 +2295,7 @@ impl Executor {
 
                             // Lazy populate columnar engine if not loaded yet
                             if !self.columnar_engine.has_table(&full_base_table) {
-                                if let Ok(all_rows) = self.storage.get_all::<RowData>(&full_base_table) {
+                                if let Ok(all_rows) = self.get_rows(&full_base_table) {
                                     for r in all_rows {
                                         self.columnar_engine.insert_row(&full_base_table, &r.columns);
                                     }
@@ -2146,13 +2347,13 @@ impl Executor {
                         }
 
                         let mut current_rows: Vec<RowData> = if is_pk_lookup {
-                            if let Some(row) = self.storage.get::<RowData>(&full_base_table, &search_val)? {
+                            if let Some(row) = self.get_row(&full_base_table, &search_val)? {
                                 vec![row]
                             } else {
                                 vec![]
                             }
                         } else {
-                            self.storage.get_all(&full_base_table)?
+                            self.get_rows(&full_base_table)?
                         };
 
                         // Prefix base columns
@@ -2180,10 +2381,10 @@ impl Executor {
                             let full_joined_table = format!("{}_{}", db_prefix, joined_table_name);
                             
                             // Make sure the table exists
-                            let _ = self.storage.get::<TableSchema>("_schemas", &full_joined_table)?
+                            let _ = self.get_table_schema(&full_joined_table)?
                                 .ok_or_else(|| anyhow!("Joined table {} does not exist", joined_table_name))?;
                                 
-                            let joined_rows: Vec<RowData> = self.storage.get_all(&full_joined_table)?;
+                            let joined_rows = self.get_rows(&full_joined_table)?;
                             let mut next_rows = Vec::new();
 
                             if let sqlparser::ast::JoinOperator::Inner(sqlparser::ast::JoinConstraint::On(on_expr)) = &join.join_operator {
@@ -2396,7 +2597,7 @@ impl Executor {
             Statement::ShowColumns { table_name, .. } => {
                 let table = clean_ident(&table_name.to_string());
                 let full_table_name = format!("{}_{}", db_prefix, table);
-                let schema_opt: Option<TableSchema> = self.storage.get("_schemas", &full_table_name)?;
+                let schema_opt = self.get_table_schema(&full_table_name)?;
                 if let Some(schema) = schema_opt {
                     let json = serde_json::to_string_pretty(&schema.columns)?;
                     Ok(json)
@@ -2407,7 +2608,7 @@ impl Executor {
             Statement::AlterTable { name, operations, .. } => {
                 let table = clean_ident(&name.to_string());
                 let full_table_name = format!("{}_{}", db_prefix, table);
-                let mut schema: TableSchema = match self.storage.get("_schemas", &full_table_name)? {
+                let mut schema: TableSchema = match self.get_table_schema(&full_table_name)? {
                     Some(s) => s,
                     None => return Err(anyhow!("Table {} does not exist", table)),
                 };
@@ -2717,9 +2918,9 @@ fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
         let full_table_name = format!("{}_{}", db_prefix, table_name);
 
         // Fetch schema with fallbacks
-        let schema_opt: Option<TableSchema> = self.storage.get("_schemas", &full_table_name)?
-            .or_else(|| self.storage.get("_schemas", &format!("public_{}", table_name)).ok().flatten())
-            .or_else(|| self.storage.get("_schemas", table_name).ok().flatten());
+        let schema_opt: Option<TableSchema> = self.get_table_schema(&full_table_name)?
+            .or_else(|| self.get_table_schema(&format!("public_{}", table_name)).ok().flatten())
+            .or_else(|| self.get_table_schema(table_name).ok().flatten());
         let schema = schema_opt.ok_or_else(|| anyhow!("Table '{}' does not exist", table_name))?;
 
         let mut active_full_table = full_table_name.clone();

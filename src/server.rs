@@ -7,7 +7,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{Html, IntoResponse},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -217,11 +217,18 @@ pub struct AppState {
     pub migration_manager: Arc<crate::migration::MigrationManager>,
 }
 
+const DASHBOARD_HTML: &str = include_str!("ui/dashboard.html");
+
+async fn handle_database_ui() -> impl IntoResponse {
+    Html(DASHBOARD_HTML)
+}
+
 async fn handle_status() -> impl IntoResponse {
     (StatusCode::OK, Json(serde_json::json!({
         "status": "online",
         "engine": "PingDart AI-Native Core Engine",
         "version": "0.5.0",
+        "ui_url": "/database",
         "capabilities": [
             "SQL Engine",
             "Document Store",
@@ -287,7 +294,8 @@ pub async fn start_server(
     }
 
     let cdc_log = executor.cdc_streamer.log().clone();
-    let backup_dir = format!("pingdart_backups_{}", port);
+    let backup_dir = std::env::var("PINGDART_BACKUP_DIR")
+        .unwrap_or_else(|_| format!("backups/pingdart_backups_{}", port));
     let backup_manager = Arc::new(crate::backup::BackupManager::new(storage.clone(), Arc::new(cdc_log), &backup_dir)?);
     let metrics = Arc::new(crate::observability::MetricsCollector::new());
     let audit_logger = Arc::new(crate::observability::AuditLogger::new(1000));
@@ -320,11 +328,17 @@ pub async fn start_server(
 
     let app = Router::new()
         .route("/", get(handle_status))
+        .route("/database", get(handle_database_ui))
+        .route("/database/", get(handle_database_ui))
+        .route("/console", get(handle_database_ui))
+        .route("/admin", get(handle_database_ui))
         .route("/login", post(handle_login))
         .route("/query", post(handle_query))
         .route("/document/query", post(handle_document_query))
         .route("/database/export", post(handle_export))
         .route("/database/import", post(handle_import))
+        .route("/export", post(handle_export))
+        .route("/import", post(handle_import))
         .route("/index/create", post(handle_index_create))
         .route("/index/drop", post(handle_index_drop))
         .route("/index/list", post(handle_index_list))
@@ -769,20 +783,33 @@ async fn handle_export(
     let db_prefix = format!("{}_", payload.database);
     let mut export_data = serde_json::Map::new();
     
+    let mut table_names = std::collections::BTreeSet::new();
     let trees = state.storage.tree_names();
     for tree in trees {
         if tree.starts_with(&db_prefix) {
             let collection_name = tree.strip_prefix(&db_prefix).unwrap().to_string();
-            if let Ok(rows) = state.storage.get_all::<crate::exec::RowData>(&tree) {
-                let mut row_values = Vec::new();
-                for row in rows {
-                    if let Ok(val) = serde_json::to_value(row) {
-                        row_values.push(val);
-                    }
-                }
-                export_data.insert(collection_name, serde_json::Value::Array(row_values));
+            table_names.insert(collection_name);
+        }
+    }
+    if let Ok(keys) = state.storage.get_keys_by_prefix("_tables", &db_prefix) {
+        for full_name in keys {
+            if let Some(col) = full_name.strip_prefix(&db_prefix) {
+                table_names.insert(col.to_string());
             }
         }
+    }
+
+    for collection_name in table_names {
+        let full_table_name = format!("{}{}", db_prefix, collection_name);
+        let mut row_values = Vec::new();
+        if let Ok(rows) = state.storage.get_all::<crate::exec::RowData>(&full_table_name) {
+            for row in rows {
+                if let Ok(val) = serde_json::to_value(row) {
+                    row_values.push(val);
+                }
+            }
+        }
+        export_data.insert(collection_name, serde_json::Value::Array(row_values));
     }
     
     info!("Database Export successful for DB: {}", payload.database);
@@ -790,6 +817,7 @@ async fn handle_export(
         StatusCode::OK,
         Json(serde_json::json!({
             "status": "success",
+            "database": payload.database,
             "data": export_data
         }))
     )
@@ -815,12 +843,14 @@ async fn handle_import(
     }
     
     let db_prefix = format!("{}_", payload.database);
+    let _ = state.storage.set("_databases", &payload.database, &payload.database);
     let mut imported_collections = 0;
     let mut imported_rows = 0;
     
     for (collection, rows_val) in payload.data {
         if let Some(rows) = rows_val.as_array() {
             let full_table_name = format!("{}{}", db_prefix, collection);
+            let _ = state.storage.set("_tables", &full_table_name, &collection);
             for row_val in rows {
                 if let Ok(row_data) = serde_json::from_value::<crate::exec::RowData>(row_val.clone()) {
                     let _ = state.storage.set(&full_table_name, &row_data._id, &row_data);
@@ -837,6 +867,7 @@ async fn handle_import(
         StatusCode::OK,
         Json(serde_json::json!({
             "status": "success",
+            "database": payload.database,
             "imported_collections": imported_collections,
             "imported_rows": imported_rows
         }))

@@ -1,0 +1,4773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PingDart DB — Admin Console & SQL Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root, html[data-theme="light"] {
+      --bg-canvas: #f8fafc;
+      --bg-navbar: #ffffff;
+      --bg-sidebar: #ffffff;
+      --bg-sidebar-header: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-header: #f8fafc;
+      --bg-surface: #f1f5f9;
+      --bg-surface-hover: #e2e8f0;
+      --bg-input: #f8fafc;
+      --border-subtle: #e2e8f0;
+      --border-hover: #cbd5e1;
+      --border-focus: #0284c7;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-glow: rgba(2, 132, 199, 0.2);
+      --indigo: #4f46e5;
+      --emerald: #059669;
+      --emerald-glow: rgba(5, 150, 105, 0.15);
+      --amber: #d97706;
+      --rose: #e11d48;
+      --text-main: #0f172a;
+      --text-muted: #334155;
+      --text-dim: #64748b;
+      --brand-title-color: #0f172a;
+      --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-modal: 0 20px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+      --editor-bg: #ffffff;
+      --editor-gutter: #f8fafc;
+      --editor-gutter-text: #94a3b8;
+      --editor-text: #0f172a;
+      --table-th-bg: #f1f5f9;
+      --table-th-text: #1e293b;
+      --table-th-hover: #e2e8f0;
+      --table-td-text: #1e293b;
+      --table-even-row: #f8fafc;
+      --table-hover-row: #f0f9ff;
+      --cell-num: #b45309;
+      --terminal-bg: #0f172a;
+      --terminal-text: #86efac;
+      --json-bg: #f8fafc;
+      --json-text: #0f172a;
+      --modal-overlay-bg: rgba(15, 23, 42, 0.5);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html[data-theme="dark"] {
+      --bg-canvas: #070a12;
+      --bg-navbar: linear-gradient(180deg, #0e1422 0%, #0a0e1a 100%);
+      --bg-sidebar: #0c111d;
+      --bg-sidebar-header: #0c111d;
+      --bg-card: #121827;
+      --bg-card-header: #0e1422;
+      --bg-surface: #182234;
+      --bg-surface-hover: #1f2c42;
+      --bg-input: #182234;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.2);
+      --border-focus: #38bdf8;
+      --primary: #0ea5e9;
+      --primary-hover: #38bdf8;
+      --primary-glow: rgba(14, 165, 233, 0.25);
+      --indigo: #6366f1;
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.2);
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --brand-title-color: #f1f5f9;
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+      --shadow-modal: 0 10px 40px rgba(0, 0, 0, 0.6);
+      --editor-bg: #090e18;
+      --editor-gutter: rgba(0, 0, 0, 0.25);
+      --editor-gutter-text: #64748b;
+      --editor-text: #f8fafc;
+      --table-th-bg: #151d2f;
+      --table-th-text: #93c5fd;
+      --table-th-hover: #1e293b;
+      --table-td-text: #cbd5e1;
+      --table-even-row: rgba(255, 255, 255, 0.015);
+      --table-hover-row: rgba(56, 189, 248, 0.06);
+      --cell-num: #fbbf24;
+      --terminal-bg: #070a12;
+      --terminal-text: #a7f3d0;
+      --json-bg: #080c16;
+      --json-text: #f1f5f9;
+      --modal-overlay-bg: rgba(0, 0, 0, 0.75);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Top Navigation Bar */
+    header.navbar {
+      height: 54px;
+      background: var(--bg-navbar);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 20;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .brand-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: #fff;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--brand-title-color);
+    }
+
+    .brand-title span {
+      background: linear-gradient(90deg, #0284c7, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .version-pill {
+      font-size: 10px;
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      color: var(--primary);
+      padding: 2px 6px;
+      border-radius: 9999px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .nav-center {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--emerald);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .active-db-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .active-db-badge select {
+      background: transparent;
+      border: none;
+      color: var(--primary);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .active-db-badge select option {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-main);
+      border-color: var(--border-hover);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .user-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #0ea5e9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border-color: var(--border-hover);
+    }
+
+    /* Main Container: Sidebar + Studio */
+    .app-body {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 54px);
+      overflow: hidden;
+    }
+
+    /* phpMyAdmin style Left Sidebar */
+    aside.sidebar {
+      width: 280px;
+      min-width: 250px;
+      max-width: 400px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      transition: background 0.2s ease;
+    }
+
+    .sidebar-header {
+      padding: 12px 14px;
+      background: var(--bg-sidebar-header);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-header-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 700;
+      color: var(--text-dim);
+    }
+
+    .sidebar-tools {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tool-icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .tool-icon-btn:hover {
+      background: var(--bg-surface);
+      color: var(--primary);
+    }
+
+    .db-search-box {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-sidebar);
+    }
+
+    .db-search-box input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .db-search-box input:focus {
+      border-color: var(--primary);
+      background: var(--bg-card);
+    }
+
+    .db-tree-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      background: var(--bg-sidebar);
+    }
+
+    .tree-server-node {
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .tree-db-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tree-db-header {
+      display: flex;
+      align-items: center;
+      padding: 6px 14px;
+      cursor: pointer;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      transition: background 0.15s;
+    }
+
+    .tree-db-header:hover {
+      background: var(--bg-surface);
+    }
+
+    .tree-db-header.active {
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
+      border-left: 3px solid var(--primary);
+      font-weight: 600;
+    }
+
+    .chevron-icon {
+      width: 14px;
+      height: 14px;
+      color: var(--text-dim);
+      transition: transform 0.2s ease;
+    }
+
+    .chevron-icon.open {
+      transform: rotate(90deg);
+    }
+
+    .tree-table-list {
+      display: none;
+      padding-left: 28px;
+      flex-direction: column;
+    }
+
+    .tree-table-list.open {
+      display: flex;
+    }
+
+    .tree-table-item {
+      padding: 5px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 1px 6px;
+      transition: all 0.15s;
+    }
+
+    .tree-table-item:hover {
+      background: var(--bg-surface);
+      color: var(--text-main);
+    }
+
+    .table-badge {
+      font-size: 10px;
+      color: var(--text-dim);
+      background: var(--bg-surface);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .sidebar-footer {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-sidebar-header);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sidebar-btn {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .sidebar-btn:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--border-hover);
+    }
+
+    /* Main Console Studio */
+    main.studio-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-canvas);
+    }
+
+    /* SQL Console Header / Toolbar */
+    .studio-top-bar {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .query-pills-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .query-pills-row::-webkit-scrollbar {
+      height: 3px;
+    }
+
+    .query-pills-row::-webkit-scrollbar-thumb {
+      background: var(--border-hover);
+    }
+
+    .pill-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .query-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--primary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .query-pill:hover {
+      background: rgba(2, 132, 199, 0.12);
+      border-color: var(--primary);
+      color: var(--primary-hover);
+    }
+
+    /* SQL Editor Box */
+    .editor-card {
+      margin: 12px 18px 8px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    .editor-card-header {
+      background: var(--bg-card-header);
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .editor-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .editor-meta {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .editor-wrapper {
+      position: relative;
+      display: flex;
+      background: var(--editor-bg);
+      min-height: 120px;
+      max-height: 220px;
+      border: 1px solid transparent;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .editor-wrapper.has-error {
+      border-color: var(--rose) !important;
+      box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.18);
+    }
+
+    .editor-line-numbers {
+      width: 44px;
+      padding: 10px 0;
+      background: var(--editor-gutter);
+      border-right: 1px solid var(--border-subtle);
+      color: var(--editor-gutter-text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: right;
+      padding-right: 8px;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .editor-line-numbers .gutter-num {
+      display: block;
+      height: 19.5px;
+      line-height: 19.5px;
+      padding-right: 4px;
+      border-radius: 3px 0 0 3px;
+    }
+
+    .editor-line-numbers .gutter-num.line-err {
+      background: rgba(244, 63, 94, 0.25);
+      color: var(--rose);
+      font-weight: 700;
+      position: relative;
+    }
+
+    .editor-line-numbers .gutter-num.line-err::before {
+      content: '●';
+      position: absolute;
+      left: 4px;
+      font-size: 8px;
+      color: var(--rose);
+    }
+
+    /* In-Editor SQL Error Alert Banner */
+    .sql-error-banner {
+      background: rgba(244, 63, 94, 0.08);
+      border-top: 1px solid rgba(244, 63, 94, 0.25);
+      border-left: 4px solid var(--rose);
+      padding: 10px 14px;
+      font-size: 12px;
+      animation: fadeInSlide 0.2s ease-out;
+    }
+
+    [data-theme="light"] .sql-error-banner {
+      background: #fff1f2;
+      border-top-color: #fecdd3;
+    }
+
+    .sql-error-banner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .sql-error-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 700;
+      color: var(--rose);
+      font-size: 12px;
+    }
+
+    .sql-error-loc {
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: var(--rose);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .sql-error-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-error-action {
+      background: transparent;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: var(--rose);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .btn-error-action:hover {
+      background: rgba(244, 63, 94, 0.15);
+    }
+
+    .btn-error-close {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      border-radius: 3px;
+    }
+
+    .btn-error-close:hover {
+      color: var(--rose);
+      background: rgba(244, 63, 94, 0.1);
+    }
+
+    .sql-error-body {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--rose);
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+
+    /* phpMyAdmin-Style Rich Results Error Card */
+    .sql-error-card {
+      margin: 16px;
+      background: var(--bg-card);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      border-left: 4px solid var(--rose);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(244, 63, 94, 0.08);
+      animation: fadeInSlide 0.25s ease-out;
+    }
+
+    [data-theme="light"] .sql-error-card {
+      background: #ffffff;
+      border-color: #fecdd3;
+      border-left-color: var(--rose);
+      box-shadow: 0 4px 14px rgba(225, 29, 72, 0.06);
+    }
+
+    .sql-error-card-header {
+      padding: 12px 16px;
+      background: rgba(244, 63, 94, 0.08);
+      border-bottom: 1px solid rgba(244, 63, 94, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    [data-theme="light"] .sql-error-card-header {
+      background: #fff1f2;
+    }
+
+    .sql-error-card-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--rose);
+      font-size: 13px;
+    }
+
+    .sql-error-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .sql-error-card-body {
+      padding: 16px;
+    }
+
+    .sql-error-code-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    [data-theme="light"] .sql-error-code-box {
+      background: #f8fafc;
+    }
+
+    .sql-error-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .sql-error-message-text {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--rose);
+      line-height: 1.5;
+      word-break: break-word;
+      font-weight: 500;
+    }
+
+    .sql-error-loc-highlight {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(244, 63, 94, 0.06);
+      border: 1px dashed rgba(244, 63, 94, 0.3);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .loc-pill {
+      background: var(--rose);
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .loc-snippet {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .sql-error-tips {
+      background: rgba(14, 165, 233, 0.04);
+      border: 1px solid rgba(14, 165, 233, 0.15);
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-size: 12px;
+    }
+
+    [data-theme="light"] .sql-error-tips {
+      background: #f0f9ff;
+      border-color: #bae6fd;
+    }
+
+    .tips-title {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .sql-error-tips ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .sql-error-tips code {
+      background: rgba(0, 0, 0, 0.06);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-main);
+    }
+
+    .sql-error-card-footer {
+      padding: 10px 16px;
+      background: var(--bg-card-header);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #sqlEditor {
+      flex: 1;
+      padding: 10px 14px;
+      background: transparent;
+      border: none;
+      color: var(--editor-text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      min-height: 120px;
+      white-space: pre-wrap;
+    }
+
+    .editor-card-footer {
+      padding: 8px 14px;
+      background: var(--bg-card-header);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .editor-shortcuts {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .editor-shortcuts kbd {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 2px 5px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .editor-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-run {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      color: #fff;
+      border: none;
+      padding: 7px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 10px var(--primary-glow);
+      transition: all 0.2s ease;
+    }
+
+    .btn-run:hover {
+      background: linear-gradient(135deg, #0369a1, #38bdf8);
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-run:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Result Panel Area */
+    .result-container {
+      flex: 1;
+      margin: 6px 18px 14px 18px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    .result-toolbar {
+      padding: 8px 14px;
+      background: var(--bg-card-header);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .result-stats {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .stat-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .stat-badge.success {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .stat-badge.error {
+      background: rgba(244, 63, 94, 0.12);
+      color: var(--rose);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .stat-badge.neutral {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .result-view-tabs {
+      display: flex;
+      align-items: center;
+      background: var(--bg-surface);
+      padding: 2px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .result-view-area {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+
+    /* Table View Styles (phpMyAdmin style) */
+    .table-view-wrapper {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      text-align: left;
+    }
+
+    table.data-table th {
+      position: sticky;
+      top: 0;
+      background: var(--table-th-bg);
+      color: var(--table-th-text);
+      padding: 9px 14px;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border-subtle);
+      white-space: nowrap;
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    table.data-table th:hover {
+      background: var(--table-th-hover);
+    }
+
+    table.data-table td {
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--table-td-text);
+      white-space: nowrap;
+    }
+
+    table.data-table tr:nth-child(even) td {
+      background: var(--table-even-row);
+    }
+
+    table.data-table tr:hover td {
+      background: var(--table-hover-row);
+    }
+
+    .cell-null {
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    .cell-bool-true {
+      color: var(--emerald);
+      font-weight: 600;
+    }
+
+    .cell-bool-false {
+      color: var(--rose);
+      font-weight: 600;
+    }
+
+    .cell-num {
+      color: var(--cell-num);
+      font-weight: 500;
+    }
+
+    /* Row Action Buttons in Data Table (phpMyAdmin style) */
+    .cell-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .btn-row-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .btn-row-action:hover {
+      background: var(--bg-card-header);
+      color: var(--text-main);
+    }
+
+    .btn-row-action.edit {
+      color: var(--primary);
+      background: rgba(14, 165, 233, 0.08);
+      border-color: rgba(14, 165, 233, 0.25);
+    }
+
+    .btn-row-action.edit:hover {
+      background: rgba(14, 165, 233, 0.2);
+    }
+
+    .btn-row-action.del {
+      color: var(--rose);
+      background: rgba(244, 63, 94, 0.08);
+      border-color: rgba(244, 63, 94, 0.25);
+    }
+
+    .btn-row-action.del:hover {
+      background: rgba(244, 63, 94, 0.2);
+    }
+
+    .btn-row-action.copy {
+      color: #6366f1;
+      background: rgba(99, 102, 241, 0.08);
+      border-color: rgba(99, 102, 241, 0.25);
+    }
+
+    .btn-row-action.copy:hover {
+      background: rgba(99, 102, 241, 0.2);
+    }
+
+    /* Vector Column Cell Chip */
+    .vector-cell-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      color: #6366f1;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    [data-theme="light"] .vector-cell-pill {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #4f46e5;
+    }
+
+    .vector-cell-pill:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: #6366f1;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+    }
+
+    .vector-preview {
+      color: var(--text-dim);
+      font-weight: 400;
+      font-size: 10px;
+    }
+
+    /* Inline Edit Mode (Edit All) */
+    .inline-edit-action-bar {
+      padding: 8px 16px;
+      background: linear-gradient(90deg, rgba(14, 165, 233, 0.12), rgba(99, 102, 241, 0.12));
+      border-bottom: 1px solid rgba(14, 165, 233, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-main);
+      animation: fadeInSlide 0.2s ease-out;
+    }
+
+    .inline-cell-input {
+      width: 100%;
+      padding: 4px 6px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      box-sizing: border-box;
+    }
+
+    .inline-cell-input:focus {
+      border-color: var(--primary);
+      outline: none;
+      background: var(--bg-card);
+    }
+
+    .inline-cell-input.cell-modified {
+      border-color: #f59e0b !important;
+      background: rgba(245, 158, 11, 0.1) !important;
+      font-weight: 600;
+    }
+
+    /* Vector Search Leaderboard Cards */
+    .vector-results-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .vector-result-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 16px;
+      transition: all 0.2s;
+    }
+
+    .vector-result-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .vector-result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .vector-rank-badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .similarity-match-badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .similarity-match-badge.high {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .similarity-match-badge.med {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .similarity-match-badge.low {
+      background: rgba(100, 116, 139, 0.15);
+      color: var(--text-dim);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .similarity-progress-bar {
+      height: 4px;
+      background: var(--border-subtle);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .similarity-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #0ea5e9, #6366f1);
+      border-radius: 2px;
+    }
+
+    .vector-row-fields {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    .vector-field-item {
+      background: var(--bg-card);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .vector-field-name {
+      color: var(--text-dim);
+      font-size: 10px;
+    }
+
+    .vector-field-val {
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    /* Terminal Console View */
+    .terminal-view-wrapper {
+      padding: 14px;
+      background: var(--terminal-bg);
+      height: 100%;
+      overflow: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--terminal-text);
+      white-space: pre-wrap;
+    }
+
+    .terminal-prompt {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .terminal-error {
+      color: var(--rose);
+      font-weight: 600;
+    }
+
+    /* Raw JSON View */
+    .json-view-wrapper {
+      padding: 14px;
+      background: var(--json-bg);
+      height: 100%;
+      overflow: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--json-text);
+      white-space: pre-wrap;
+    }
+
+    /* Empty state */
+    .empty-state {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      stroke: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    /* Modals & Overlays */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--modal-overlay-bg);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 420px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      box-shadow: var(--shadow-modal);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      background: var(--bg-card-header);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: var(--bg-card);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .form-group input, .form-group select {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border 0.15s;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--border-focus);
+      background: var(--bg-card);
+    }
+
+    .modal-footer {
+      padding: 14px 20px;
+      background: var(--bg-card-header);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    /* Notification Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 200;
+    }
+
+    .toast {
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-modal);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slideUp 0.2s ease-out;
+      color: var(--text-main);
+    }
+
+    .toast.success {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: var(--emerald);
+    }
+
+    .toast.error {
+      border-color: rgba(244, 63, 94, 0.4);
+      color: var(--rose);
+    }
+
+    .toast.info {
+      border-color: rgba(14, 165, 233, 0.4);
+      color: var(--primary);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* DB Actions Toolbar */
+    .db-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .db-action-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .db-action-btn:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--border-hover);
+      color: var(--primary);
+    }
+
+    .db-action-btn.danger {
+      color: var(--rose);
+    }
+
+    .db-action-btn.danger:hover {
+      background: rgba(244, 63, 94, 0.1);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: var(--rose);
+    }
+
+    .modal-box.wide {
+      width: 760px;
+      max-width: 95vw;
+    }
+
+    /* Modal Navigation Tabs */
+    .modal-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-card-header);
+      padding: 0 16px;
+      gap: 4px;
+    }
+
+    .modal-tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .modal-tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .modal-tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* IP & Preset pills */
+    .preset-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .preset-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: var(--font-mono);
+      user-select: none;
+    }
+
+    .preset-pill:hover {
+      background: var(--bg-surface-hover);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* User management table */
+    .user-table-wrapper {
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+    }
+
+    table.user-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    table.user-table th {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      padding: 8px 12px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    table.user-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    table.user-table tr:hover td {
+      background: var(--table-hover-row);
+    }
+
+    .badge-ip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--primary);
+      border: 1px solid rgba(2, 132, 199, 0.25);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .badge-role {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--indigo);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      margin: 1px 2px;
+    }
+
+    /* Drag & Drop File Zone */
+    .dropzone {
+      border: 2px dashed var(--border-hover);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      background: var(--bg-surface);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(2, 132, 199, 0.05);
+    }
+
+    .dropzone svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    /* Mini action button in tables */
+    .btn-action-mini {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .btn-action-mini:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-main);
+      border-color: var(--border-hover);
+    }
+
+    .btn-action-mini.danger:hover {
+      background: rgba(244, 63, 94, 0.1);
+      color: var(--rose);
+      border-color: rgba(244, 63, 94, 0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 3.79 2 6v12c0 2.21 4.48 4 10 4s10-1.79 10-4V6c0-2.21-4.48-4-10-4zm0 2c4.97 0 8 1.5 8 2s-3.03 2-8 2-8-1.5-8-2 3.03-2 8-2zm0 16c-4.97 0-8-1.5-8-2v-2.23c2.06 1.34 5.09 2.23 8 2.23s5.94-.89 8-2.23V18c0 .5-3.03 2-8 2zm0-5c-4.97 0-8-1.5-8-2v-2.23c2.06 1.34 5.09 2.23 8 2.23s5.94-.89 8-2.23V13c0 .5-3.03 2-8 2z"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        PingDart <span>DB</span>
+        <div class="version-pill">v0.5.0</div>
+      </div>
+    </div>
+
+    <div class="nav-center">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        <span id="clusterStatusText">Engine Online</span>
+      </div>
+
+      <div class="active-db-badge">
+        <span style="color: var(--text-dim);">Database:</span>
+        <select id="activeDbSelect" onchange="onDatabaseChange(this.value)">
+          <option value="default">default</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Switch Light/Dark Theme">
+        <span id="themeIcon" style="display: flex; align-items: center;"></span>
+        <span id="themeText">Light</span>
+      </button>
+      <div class="user-pill" id="userPill">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <span id="userNameDisplay">admin</span>
+      </div>
+      <button class="btn-ghost" onclick="openUsersModal()" title="Manage Users & IP Permissions">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Users & Privileges
+      </button>
+      <button class="btn-ghost" onclick="handleLogout()" title="Sign Out">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </header>
+
+  <!-- Workspace Body -->
+  <div class="app-body">
+    <!-- Left Explorer Sidebar (phpMyAdmin Style) -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-header-title">Databases & Objects</span>
+        <div class="sidebar-tools">
+          <button class="tool-icon-btn" onclick="showCreateDbModal()" title="Create New Database">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="tool-icon-btn" onclick="loadDatabasesAndTables()" title="Refresh Schema">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="db-search-box">
+        <input type="text" id="dbSearchInput" placeholder="Filter databases & tables..." oninput="filterTree(this.value)" />
+      </div>
+
+      <div class="db-tree-container" id="dbTreeContainer">
+        <!-- Tree nodes generated dynamically -->
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="sidebar-btn" onclick="setQuery('SHOW DATABASES;')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          List Databases
+        </button>
+        <button class="sidebar-btn" onclick="openUsersModal()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          List Users & Permissions
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main SQL Console & Terminal -->
+    <main class="studio-area">
+      <!-- Toolbar & Quick SQL Snippets & DB Actions -->
+      <div class="studio-top-bar">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+          <div class="query-pills-row">
+            <span class="pill-label">Quick Queries:</span>
+            <div class="query-pill" onclick="setQuery('SHOW DATABASES;')">SHOW DATABASES;</div>
+            <div class="query-pill" onclick="setQuery('SHOW TABLES;')">SHOW TABLES;</div>
+            <div class="query-pill" onclick="setQuery('SHOW USERS;')">SHOW USERS;</div>
+            <div class="query-pill" onclick="setQuery('SELECT * FROM users LIMIT 10;')">SELECT * FROM users;</div>
+            <div class="query-pill" onclick="setQuery('CREATE TABLE example (id INT PRIMARY KEY, name TEXT, created_at TIMESTAMP);')">CREATE TABLE ...;</div>
+            <div class="query-pill" onclick="setQuery('SHOW STATUS;')">SHOW STATUS;</div>
+          </div>
+
+          <!-- DB Operations Toolbar -->
+          <div class="db-actions-row">
+            <button class="db-action-btn" onclick="openVectorModal()" title="Vector DB Studio & Similarity Search" style="color: #6366f1; border-color: rgba(99, 102, 241, 0.35);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3m-3.5-6.5l-2.1 2.1m-8.8 8.8l-2.1 2.1m0-13l2.1 2.1m8.8 8.8l2.1 2.1"/></svg>
+              🧠 Vector DB
+            </button>
+            <button class="db-action-btn" onclick="openExportModal()" title="Export entire active database as SQL or JSON">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export DB
+            </button>
+            <button class="db-action-btn" onclick="openImportModal()" title="Import SQL script or JSON data into active database">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Import DB
+            </button>
+            <button class="db-action-btn" onclick="openUsersModal()" title="Manage users, IP permissions and database privileges">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Users & Permissions
+            </button>
+            <button class="db-action-btn danger" onclick="confirmDropActiveDb()" title="Drop this database">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Drop DB
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SQL Query Editor Card -->
+      <div class="editor-card">
+        <div class="editor-card-header">
+          <div class="editor-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            SQL Query Console
+          </div>
+          <div class="editor-meta" id="queryMetaHint">Target: <span id="targetDbHint" style="color: var(--primary); font-weight: 600;">default</span></div>
+        </div>
+
+        <div class="editor-wrapper" id="editorWrapper">
+          <div class="editor-line-numbers" id="lineNumbers">1</div>
+          <textarea id="sqlEditor" spellcheck="false" placeholder="Write SQL statement here (e.g. SHOW TABLES; or SELECT * FROM ...)">SHOW DATABASES;</textarea>
+        </div>
+
+        <!-- In-Editor SQL Error Alert Banner -->
+        <div id="sqlErrorBanner" class="sql-error-banner" style="display: none;">
+          <div class="sql-error-banner-header">
+            <div class="sql-error-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>SQL Execution Error</span>
+              <span class="sql-error-loc" id="sqlErrorLocBadge" style="display: none;"></span>
+            </div>
+            <div class="sql-error-actions">
+              <button type="button" class="btn-error-action" onclick="copySqlError()" title="Copy Error Message">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+              <button type="button" class="btn-error-close" onclick="dismissSqlError()" title="Dismiss">✕</button>
+            </div>
+          </div>
+          <div class="sql-error-body" id="sqlErrorMsg"></div>
+        </div>
+
+        <div class="editor-card-footer">
+          <div class="editor-shortcuts">
+            Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> or <kbd>⌘</kbd> + <kbd>Enter</kbd> to execute
+          </div>
+          <div class="editor-actions">
+            <button class="btn-ghost" onclick="clearEditor()">Clear</button>
+            <button class="btn-run" id="runQueryBtn" onclick="executeQuery()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Run Query
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Query Results Container -->
+      <div class="result-container">
+        <div class="result-toolbar">
+          <div class="result-stats">
+            <div class="stat-badge neutral" id="resultStatusBadge">Ready</div>
+            <div class="stat-badge neutral" id="resultDurationBadge">⏱ 0.00 ms</div>
+            <div class="stat-badge neutral" id="resultRowsBadge">📊 0 rows</div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn-ghost" id="editAllBtn" onclick="toggleEditAllMode()" title="Toggle Inline Edit for all visible rows" style="font-size: 11px; padding: 4px 8px; color: var(--primary);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span id="editAllBtnText">Edit All</span>
+            </button>
+            <button class="btn-ghost" id="addRecordBtn" onclick="openInsertRowModal()" title="Insert new record into current table" style="font-size: 11px; padding: 4px 8px; color: var(--emerald);">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Record
+            </button>
+            <button class="btn-ghost" onclick="exportResultCsv()" title="Export CSV" style="font-size: 11px; padding: 4px 8px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              CSV
+            </button>
+            <button class="btn-ghost" onclick="copyResultJson()" title="Copy JSON" style="font-size: 11px; padding: 4px 8px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
+            <div class="result-view-tabs">
+              <button class="tab-btn active" id="tabTable" onclick="switchResultTab('table')">Table</button>
+              <button class="tab-btn" id="tabTerminal" onclick="switchResultTab('terminal')">Terminal</button>
+              <button class="tab-btn" id="tabJson" onclick="switchResultTab('json')">JSON</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inline Edit Action Bar (shown when Edit All is active) -->
+        <div id="inlineEditActionBar" class="inline-edit-action-bar" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span id="inlineEditStatusText" style="font-weight: 500;">Inline Edit Mode: modify cells directly in table below.</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn-primary" onclick="saveAllInlineEdits()" id="saveInlineEditsBtn" style="padding: 4px 12px; font-size: 11px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save All Changes (<span id="modifiedCellsCount">0</span>)
+            </button>
+            <button class="btn-ghost" onclick="cancelInlineEditMode()" style="padding: 4px 10px; font-size: 11px;">Cancel</button>
+          </div>
+        </div>
+
+        <div class="result-view-area">
+          <!-- Table View (phpMyAdmin style) -->
+          <div class="table-view-wrapper" id="tableView">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+              </svg>
+              <span>Execute a query above to see results in table view</span>
+            </div>
+          </div>
+
+          <!-- Terminal View -->
+          <div class="terminal-view-wrapper" id="terminalView" style="display: none;">
+pingdart> Welcome to PingDart DB Interactive Web Terminal
+pingdart> Type SQL queries and press Run Query or Ctrl+Enter.
+          </div>
+
+          <!-- JSON View -->
+          <div class="json-view-wrapper" id="jsonView" style="display: none;">
+{}
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Admin Login Modal Overlay -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <div class="brand-icon" style="width: 22px; height: 22px;">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 3.79 2 6v12c0 2.21 4.48 4 10 4s10-1.79 10-4V6c0-2.21-4.48-4-10-4zm0 2c4.97 0 8 1.5 8 2s-3.03 2-8 2-8-1.5-8-2 3.03-2 8-2z"/></svg>
+          </div>
+          PingDart DB Authentication
+        </div>
+      </div>
+      <form onsubmit="handleLoginSubmit(event)">
+        <div class="modal-body">
+          <div style="font-size: 13px; color: var(--text-muted);">
+            Sign in as database administrator to access SQL console and database management.
+          </div>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="loginUser" value="admin" required autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPass" value="admin123" required autocomplete="current-password" />
+          </div>
+          <div id="loginError" style="font-size: 12px; color: #fb7185; display: none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-primary" id="loginSubmitBtn">Sign In</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Database Modal -->
+  <div class="modal-overlay" id="createDbModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">Create New Database</div>
+        <button class="modal-close-btn" onclick="closeModal('createDbModal')">&times;</button>
+      </div>
+      <form onsubmit="handleCreateDbSubmit(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Database Name</label>
+            <input type="text" id="newDbName" placeholder="e.g. ecommerce, analytics, users" required pattern="[a-zA-Z0-9_]+" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-ghost" onclick="closeModal('createDbModal')">Cancel</button>
+          <button type="submit" class="btn-primary">Create Database</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Export Database Modal -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export Database: <span id="exportDbNameLabel" style="color: var(--primary);">default</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('exportModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Target Database</label>
+          <select id="exportDbSelect" onchange="document.getElementById('exportDbNameLabel').textContent = this.value">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Export Format</label>
+          <div style="display: flex; gap: 16px; margin-top: 4px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
+              <input type="radio" name="exportFormat" value="sql" checked /> SQL Dump (.sql)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
+              <input type="radio" name="exportFormat" value="json" /> JSON Backup (.json)
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Options</label>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-top: 2px;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="exportIncludeStructure" checked /> Include CREATE TABLE structure
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="exportIncludeData" checked /> Include data rows (INSERT INTO)
+            </label>
+          </div>
+        </div>
+        <div id="exportStatusMsg" style="font-size: 12px; color: var(--text-dim);"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('exportModal')">Cancel</button>
+        <button type="button" class="btn-ghost" onclick="copyExportToClipboard()">Copy to Clipboard</button>
+        <button type="button" class="btn-primary" id="downloadExportBtn" onclick="runExportDownload()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export & Download
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Database Modal -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal-box" style="width: 540px;">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import into Database: <span id="importDbNameLabel" style="color: var(--primary);">default</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('importModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Target Database</label>
+          <select id="importDbSelect" onchange="document.getElementById('importDbNameLabel').textContent = this.value">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Choose File (.sql or .json)</label>
+          <div class="dropzone" id="importDropzone" onclick="document.getElementById('importFileInput').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="font-size: 13px; font-weight: 500; color: var(--text-main);" id="dropzoneLabel">Click or drag & drop a .sql or .json file here</div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Supports SQL DDL/DML scripts and PingDart JSON dumps</div>
+            <input type="file" id="importFileInput" accept=".sql,.json" style="display: none;" onchange="handleFilePicked(event)" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Or Paste SQL Script / JSON</label>
+          <textarea id="importTextInput" placeholder="CREATE TABLE ...; INSERT INTO ...; or { &quot;table&quot;: [...] }" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-main); padding: 8px; border-radius: 6px; font-family: var(--font-mono); font-size: 12px; height: 100px; resize: vertical; outline: none;"></textarea>
+        </div>
+
+        <div id="importStatusMsg" style="font-size: 12px; color: var(--text-dim); display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('importModal')">Cancel</button>
+        <button type="button" class="btn-primary" id="runImportBtn" onclick="executeDatabaseImport()">Run Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users & IP Permissions Manager Modal -->
+  <div class="modal-overlay" id="usersModal">
+    <div class="modal-box wide">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          User Accounts, IP Rules & Privileges
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('usersModal')">&times;</button>
+      </div>
+
+      <!-- Navigation Tabs inside Modal -->
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" id="userTabListBtn" onclick="switchUsersTab('list')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          User Accounts (<span id="userCountBadge">0</span>)
+        </button>
+        <button class="modal-tab-btn" id="userTabEditBtn" onclick="switchUsersTab('edit')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add / Configure User & IP Rules
+        </button>
+      </div>
+
+      <!-- Tab 1: User List & Summary -->
+      <div class="modal-body" id="usersListView">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <span style="font-size: 12px; color: var(--text-muted);">Configured database users and network access permissions:</span>
+          <button class="btn-primary" style="font-size: 11px; padding: 5px 12px;" onclick="prepareCreateUser()">+ New User</button>
+        </div>
+
+        <div class="user-table-wrapper">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Allowed IP / Host</th>
+                <th>Assigned Roles & DBs</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-dim); padding: 20px;">Loading users...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: User Configuration & IP Rules -->
+      <div class="modal-body" id="usersEditView" style="display: none;">
+        <form onsubmit="handleSaveUserSubmit(event)">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="cfgUsername" placeholder="e.g. dev_app, analyst" required pattern="[a-zA-Z0-9_]+" />
+            </div>
+            <div class="form-group">
+              <label>Password <span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">(Leave blank to keep unchanged if editing)</span></label>
+              <input type="password" id="cfgPassword" placeholder="Enter secure password" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Allowed IP / Network Host Restriction</span>
+              <span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">Enforced on login & connection</span>
+            </label>
+            <input type="text" id="cfgAllowedIp" value="%" placeholder="% for any, or 127.0.0.1, or 192.168.1.%" />
+            <div class="preset-pills">
+              <span style="font-size: 11px; color: var(--text-dim); align-self: center;">Quick Presets:</span>
+              <div class="preset-pill" onclick="document.getElementById('cfgAllowedIp').value = '%'">% (Any Host)</div>
+              <div class="preset-pill" onclick="document.getElementById('cfgAllowedIp').value = '127.0.0.1, localhost'">127.0.0.1 (Localhost only)</div>
+              <div class="preset-pill" onclick="document.getElementById('cfgAllowedIp').value = '192.168.%.%'">192.168.%.% (Local LAN)</div>
+              <div class="preset-pill" onclick="document.getElementById('cfgAllowedIp').value = '10.%.%.%'">10.%.%.% (Private VPC)</div>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); margin-top: 14px; padding-top: 12px;">
+            <label style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; display: block;">
+              Database Privileges
+            </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
+              <div class="form-group">
+                <label>Database</label>
+                <select id="cfgDbSelect">
+                  <option value="*">* (All Databases)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Privilege Level</label>
+                <select id="cfgPrivilegeSelect">
+                  <option value="ALL">ALL PRIVILEGES (Full Admin)</option>
+                  <option value="READWRITE">READWRITE (Select, Insert, Update, Delete)</option>
+                  <option value="SELECT">SELECT (Read-Only)</option>
+                </select>
+              </div>
+              <div>
+                <button type="button" class="btn-ghost" onclick="applyPrivilegeToUser()" style="height: 38px;">
+                  + Grant
+                </button>
+              </div>
+            </div>
+
+            <!-- List of current active permissions for user -->
+            <div id="userActiveRolesContainer" style="margin-top: 10px;">
+              <!-- Dynamic tags rendered here -->
+            </div>
+          </div>
+
+          <div class="modal-footer" style="margin: 16px -20px -20px -20px;">
+            <button type="button" class="btn-ghost" onclick="switchUsersTab('list')">Back to List</button>
+            <button type="submit" class="btn-primary" id="saveUserBtn">Save User & Permissions</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drop Database Confirmation Modal -->
+  <div class="modal-overlay" id="dropDbModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" style="color: var(--rose);">Drop Database</div>
+        <button class="modal-close-btn" onclick="closeModal('dropDbModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-main);">
+          Are you sure you want to permanently drop database <b id="dropDbTargetName" style="color: var(--rose);"></b>?
+        </p>
+        <p style="font-size: 12px; color: var(--text-dim); margin-top: 6px;">
+          All tables, schemas, and records inside this database will be deleted permanently.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('dropDbModal')">Cancel</button>
+        <button type="button" class="btn-primary" style="background: var(--rose);" onclick="executeDropActiveDb()">Drop Database</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Record Modal (phpMyAdmin Style) -->
+  <div class="modal-overlay" id="editRecordModal">
+    <div class="modal-box" style="width: 580px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div class="modal-title" id="editRecordTitle" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Edit Record
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('editRecordModal')">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1;">
+        <form id="editRecordForm">
+          <input type="hidden" id="editRecordRowIndex" />
+          <div id="editRecordFields"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('editRecordModal')">Cancel</button>
+        <button type="button" class="btn-primary" onclick="saveRecordEdit()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Insert Record Modal -->
+  <div class="modal-overlay" id="insertRecordModal">
+    <div class="modal-box" style="width: 580px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div class="modal-title" id="insertRecordTitle" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add New Record
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('insertRecordModal')">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1;">
+        <form id="insertRecordForm">
+          <div id="insertRecordFields"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('insertRecordModal')">Cancel</button>
+        <button type="button" class="btn-primary" style="background: var(--emerald);" onclick="saveNewRecord()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Insert Record
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vector Inspector & Editor Modal -->
+  <div class="modal-overlay" id="vectorInspectorModal">
+    <div class="modal-box" style="width: 620px;">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #6366f1;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3m-3.5-6.5l-2.1 2.1m-8.8 8.8l-2.1 2.1m0-13l2.1 2.1m8.8 8.8l2.1 2.1"/></svg>
+          Vector Embedding Inspector
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('vectorInspectorModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px;">
+          <div class="vector-field-item">
+            <div class="vector-field-name">DIMENSIONS</div>
+            <div class="vector-field-val" id="vecMetaDim" style="color: #6366f1;">0</div>
+          </div>
+          <div class="vector-field-item">
+            <div class="vector-field-name">L2 NORM</div>
+            <div class="vector-field-val" id="vecMetaNorm">0.000</div>
+          </div>
+          <div class="vector-field-item">
+            <div class="vector-field-name">MIN VAL</div>
+            <div class="vector-field-val" id="vecMetaMin">0.000</div>
+          </div>
+          <div class="vector-field-item">
+            <div class="vector-field-name">MAX VAL</div>
+            <div class="vector-field-val" id="vecMetaMax">0.000</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="display: flex; justify-content: space-between;">
+            <span>Raw Vector Array (Float32 Array)</span>
+            <span style="font-size: 11px; color: var(--text-dim);" id="vecColumnLabel"></span>
+          </label>
+          <textarea id="vecRawTextarea" class="form-input" rows="8" style="font-family: var(--font-mono); font-size: 11px; line-height: 1.4; resize: vertical;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between;">
+        <button type="button" class="btn-ghost" onclick="copyInspectedVector()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy Vector
+        </button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-ghost" style="color: #6366f1;" onclick="useInspectedVectorInStudio()">
+            🧠 Find Similar Vectors
+          </button>
+          <button type="button" class="btn-primary" onclick="saveInspectedVector()">
+            Save Vector
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vector DB Studio & Search Modal -->
+  <div class="modal-overlay" id="vectorModal">
+    <div class="modal-box wide" style="width: 780px; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #6366f1;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3m-3.5-6.5l-2.1 2.1m-8.8 8.8l-2.1 2.1m0-13l2.1 2.1m8.8 8.8l2.1 2.1"/></svg>
+          Vector DB Studio & Similarity Search
+          <span class="loc-pill" style="background: #6366f1;">HNSW ANN</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('vectorModal')">&times;</button>
+      </div>
+
+      <div class="modal-body" style="overflow-y: auto; flex: 1;">
+        <!-- Configuration Card -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label class="form-label">Database</label>
+            <select id="vecSearchDbSelect" class="form-input" onchange="onVecModalDbChange()"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Table with Vectors</label>
+            <select id="vecSearchTableSelect" class="form-input" onchange="onVecModalTableChange()"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vector Column</label>
+            <select id="vecSearchColSelect" class="form-input"></select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label class="form-label">Query Mode</label>
+            <div style="display: flex; gap: 10px; margin-top: 4px;">
+              <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                <input type="radio" name="vecQueryMode" value="row" checked onchange="toggleVecQueryMode('row')">
+                <span>Pick Reference Row</span>
+              </label>
+              <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                <input type="radio" name="vecQueryMode" value="custom" onchange="toggleVecQueryMode('custom')">
+                <span>Custom Vector Array</span>
+              </label>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group">
+              <label class="form-label">Top-K</label>
+              <select id="vecSearchTopK" class="form-input">
+                <option value="3" selected>3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Metric</label>
+              <select id="vecSearchMetric" class="form-input">
+                <option value="cosine" selected>Cosine</option>
+                <option value="euclidean">Euclidean</option>
+                <option value="dot">Dot Product</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Query Input Areas -->
+        <div id="vecQueryRowContainer" class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label">Choose Reference Row from Table to find nearest matches:</label>
+          <select id="vecReferenceRowSelect" class="form-input" style="font-family: var(--font-mono); font-size: 12px;"></select>
+        </div>
+
+        <div id="vecQueryCustomContainer" class="form-group" style="display: none; margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label class="form-label" style="margin-bottom: 0;">Query Vector JSON Array:</label>
+            <button type="button" class="btn-ghost" onclick="generateRandomProbeVector()" style="font-size: 11px; padding: 2px 8px; color: #6366f1;">
+              ⚡ Generate Random Probe Vector
+            </button>
+          </div>
+          <textarea id="vecCustomArrayInput" class="form-input" rows="3" placeholder="[0.026, -0.015, 0.082, ...]" style="font-family: var(--font-mono); font-size: 11px;"></textarea>
+        </div>
+
+        <!-- Search Action Button -->
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
+          <button type="button" class="btn-primary" id="runVecSearchBtn" onclick="runVectorSearch()" style="background: linear-gradient(135deg, #4f46e5, #6366f1); box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Execute Vector Search
+          </button>
+        </div>
+
+        <!-- Search Results Leaderboard -->
+        <div id="vecResultsArea" style="display: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-main);">
+              Nearest Semantic Neighbors (<span id="vecResultsCount">0</span> hits found)
+            </div>
+            <div style="font-size: 11px; color: var(--text-dim);" id="vecDurationText"></div>
+          </div>
+          <div class="vector-results-list" id="vecResultsList"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('vectorModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toasts -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // State management
+    const state = {
+      token: localStorage.getItem('pingdart_token') || '',
+      user: localStorage.getItem('pingdart_user') || 'admin',
+      theme: localStorage.getItem('pingdart_theme') || 'light',
+      activeDb: 'default',
+      databases: ['default'],
+      activeTab: 'table',
+      lastResult: null,
+      history: [],
+      currentTable: null,
+      tableData: [],
+      tableColumns: [],
+      isInlineEditMode: false,
+      modifiedCells: {},
+      inspectedVector: null
+    };
+
+    // Initialize UI on load
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      initLineNumbers();
+      initEditorKeybindings();
+
+      if (!state.token) {
+        showLoginModal();
+      } else {
+        verifySession();
+      }
+    });
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem('pingdart_theme') || 'light';
+      applyTheme(savedTheme);
+    }
+
+    function applyTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('pingdart_theme', theme);
+
+      const iconEl = document.getElementById('themeIcon');
+      const textEl = document.getElementById('themeText');
+      if (iconEl && textEl) {
+        if (theme === 'light') {
+          iconEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+          textEl.textContent = 'Light';
+        } else {
+          iconEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+          textEl.textContent = 'Dark';
+        }
+      }
+    }
+
+    function toggleTheme() {
+      const nextTheme = state.theme === 'light' ? 'dark' : 'light';
+      applyTheme(nextTheme);
+      showToast(`Switched to ${nextTheme === 'light' ? 'Light' : 'Dark'} theme`, 'info');
+    }
+
+    function showToast(msg, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function updateLines(errLine = null) {
+      const editor = document.getElementById('sqlEditor');
+      const lineGutter = document.getElementById('lineNumbers');
+      if (!editor || !lineGutter) return;
+
+      const lines = editor.value.split('\n').length;
+      let lineNums = '';
+      for (let i = 1; i <= lines; i++) {
+        if (errLine && i === errLine) {
+          lineNums += `<span class="gutter-num line-err" title="Syntax error near line ${i}">${i}</span>`;
+        } else {
+          lineNums += `<span class="gutter-num">${i}</span>`;
+        }
+      }
+      lineGutter.innerHTML = lineNums;
+    }
+
+    function initLineNumbers() {
+      const editor = document.getElementById('sqlEditor');
+      const lineGutter = document.getElementById('lineNumbers');
+
+      editor.addEventListener('input', () => {
+        updateLines();
+        dismissSqlError();
+      });
+
+      editor.addEventListener('scroll', () => {
+        lineGutter.scrollTop = editor.scrollTop;
+      });
+      updateLines();
+    }
+
+    function initEditorKeybindings() {
+      const editor = document.getElementById('sqlEditor');
+      editor.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          executeQuery();
+        }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = editor.selectionStart;
+          const end = editor.selectionEnd;
+          editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+          editor.selectionStart = editor.selectionEnd = start + 2;
+        }
+      });
+    }
+
+    function showLoginModal() {
+      document.getElementById('loginModal').classList.add('active');
+    }
+
+    function hideLoginModal() {
+      document.getElementById('loginModal').classList.remove('active');
+    }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
+      const errorDiv = document.getElementById('loginError');
+      const submitBtn = document.getElementById('loginSubmitBtn');
+
+      errorDiv.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Authenticating...';
+
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.status === 'success' && data.token) {
+          state.token = data.token;
+          state.user = username;
+          localStorage.setItem('pingdart_token', data.token);
+          localStorage.setItem('pingdart_user', username);
+
+          document.getElementById('userNameDisplay').textContent = username;
+          document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+
+          hideLoginModal();
+          showToast(`Welcome back, ${username}!`, 'success');
+          loadDatabasesAndTables();
+        } else {
+          errorDiv.textContent = data.error || 'Authentication failed. Check credentials.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Server connection error: ' + err.message;
+        errorDiv.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+      }
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('pingdart_token');
+      localStorage.removeItem('pingdart_user');
+      state.token = '';
+      showLoginModal();
+    }
+
+    async function verifySession() {
+      document.getElementById('userNameDisplay').textContent = state.user;
+      document.getElementById('userAvatar').textContent = state.user.charAt(0).toUpperCase();
+      loadDatabasesAndTables();
+    }
+
+    function setQuery(sql) {
+      const editor = document.getElementById('sqlEditor');
+      editor.value = sql;
+      const event = new Event('input');
+      editor.dispatchEvent(event);
+      editor.focus();
+    }
+
+    function clearEditor() {
+      setQuery('');
+    }
+
+    function onDatabaseChange(dbName) {
+      state.activeDb = dbName;
+      document.getElementById('targetDbHint').textContent = dbName;
+      showToast(`Switched active database to '${dbName}'`, 'success');
+    }
+
+    async function loadDatabasesAndTables() {
+      if (!state.token) return;
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            query: 'SHOW DATABASES;',
+            database: 'default'
+          })
+        });
+
+        const data = await res.json();
+        if (data.status === 'success') {
+          let dbs = [];
+          try {
+            dbs = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+          } catch (_) {
+            dbs = ['default'];
+          }
+          if (!dbs || !dbs.length) dbs = ['default'];
+          if (!dbs.includes('default')) dbs.unshift('default');
+          state.databases = dbs;
+
+          // Update active DB select options
+          const select = document.getElementById('activeDbSelect');
+          select.innerHTML = '';
+          dbs.forEach(db => {
+            const opt = document.createElement('option');
+            opt.value = db;
+            opt.textContent = db;
+            if (db === state.activeDb) opt.selected = true;
+            select.appendChild(opt);
+          });
+
+          renderDatabaseTree(dbs);
+        }
+      } catch (err) {
+        console.error('Failed to load databases:', err);
+      }
+    }
+
+    async function renderDatabaseTree(databases) {
+      const tree = document.getElementById('dbTreeContainer');
+      tree.innerHTML = `
+        <div class="tree-server-node">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          <span>Server (127.0.0.1)</span>
+        </div>
+      `;
+
+      for (const db of databases) {
+        const dbNode = document.createElement('div');
+        dbNode.className = 'tree-db-item';
+        dbNode.innerHTML = `
+          <div class="tree-db-header ${db === state.activeDb ? 'active' : ''}" onclick="toggleDbNode('${db}')">
+            <svg class="chevron-icon" id="chevron-${db}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span style="flex: 1;">${db}</span>
+          </div>
+          <div class="tree-table-list" id="tables-${db}">
+            <div style="padding: 4px 10px; font-size: 11px; color: var(--text-dim);">Loading tables...</div>
+          </div>
+        `;
+        tree.appendChild(dbNode);
+
+        // If default or active, expand automatically
+        if (db === state.activeDb) {
+          setTimeout(() => toggleDbNode(db, true), 100);
+        }
+      }
+    }
+
+    async function toggleDbNode(dbName, forceOpen = false) {
+      const chevron = document.getElementById(`chevron-${dbName}`);
+      const tableList = document.getElementById(`tables-${dbName}`);
+      if (!chevron || !tableList) return;
+
+      const isOpen = tableList.classList.contains('open');
+      if (isOpen && !forceOpen) {
+        tableList.classList.remove('open');
+        chevron.classList.remove('open');
+      } else {
+        tableList.classList.add('open');
+        chevron.classList.add('open');
+        await loadTablesForDb(dbName);
+      }
+    }
+
+    async function loadTablesForDb(dbName) {
+      const container = document.getElementById(`tables-${dbName}`);
+      if (!container) return;
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            query: 'SHOW TABLES;',
+            database: dbName
+          })
+        });
+
+        const data = await res.json();
+        if (data.status === 'success') {
+          let tables = [];
+          try {
+            tables = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+          } catch (_) {
+            tables = [];
+          }
+
+          if (!Array.isArray(tables) || tables.length === 0) {
+            container.innerHTML = `<div style="padding: 4px 10px; font-size: 11px; color: var(--text-dim); font-style: italic;">No tables found</div>`;
+            return;
+          }
+
+          container.innerHTML = '';
+          tables.forEach(t => {
+            const tableName = t.Table || t.table_name || (typeof t === 'string' ? t : 'unknown');
+            const rowCount = t.Rows !== undefined ? t.Rows : '';
+            const row = document.createElement('div');
+            row.className = 'tree-table-item';
+            row.onclick = (e) => {
+              e.stopPropagation();
+              state.activeDb = dbName;
+              document.getElementById('activeDbSelect').value = dbName;
+              document.getElementById('targetDbHint').textContent = dbName;
+              setQuery(`SELECT * FROM ${tableName} LIMIT 50;`);
+              executeQuery();
+            };
+            row.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                <span>${tableName}</span>
+              </div>
+              <span class="table-badge">${rowCount}</span>
+            `;
+            container.appendChild(row);
+          });
+        }
+      } catch (err) {
+        container.innerHTML = `<div style="padding: 4px 10px; font-size: 11px; color: var(--rose);">Failed to load tables</div>`;
+      }
+    }
+
+    function filterTree(query) {
+      const q = query.toLowerCase().trim();
+      const dbItems = document.querySelectorAll('.tree-db-item');
+      dbItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(q) ? 'flex' : 'none';
+      });
+    }
+
+    async function executeQuery() {
+      const editor = document.getElementById('sqlEditor');
+      const query = editor.value.trim();
+      if (!query) {
+        showToast('Please enter a SQL query first', 'error');
+        return;
+      }
+
+      if (!state.token) {
+        showLoginModal();
+        return;
+      }
+
+      const runBtn = document.getElementById('runQueryBtn');
+      const statusBadge = document.getElementById('resultStatusBadge');
+      const durationBadge = document.getElementById('resultDurationBadge');
+      const rowsBadge = document.getElementById('resultRowsBadge');
+
+      runBtn.disabled = true;
+      runBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+        Executing...
+      `;
+
+      const startTime = performance.now();
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            query: query,
+            database: state.activeDb
+          })
+        });
+
+        const duration = (performance.now() - startTime).toFixed(2);
+        durationBadge.textContent = `⏱ ${duration} ms`;
+
+        const data = await res.json();
+        state.lastResult = data;
+
+        if (res.ok && data.status === 'success') {
+          dismissSqlError();
+          statusBadge.className = 'stat-badge success';
+          statusBadge.textContent = 'Query OK';
+
+          let parsed = null;
+          try {
+            parsed = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+          } catch (_) {
+            parsed = data.result;
+          }
+
+          // Update Rows Badge
+          if (Array.isArray(parsed)) {
+            rowsBadge.textContent = `📊 ${parsed.length} row${parsed.length === 1 ? '' : 's'}`;
+          } else {
+            rowsBadge.textContent = '📊 1 row affected';
+          }
+
+          renderResults(parsed, query, duration);
+
+          // If query was DDL (CREATE DATABASE, DROP, etc.), refresh tree
+          const qLower = query.toLowerCase();
+          if (qLower.startsWith('create database') || qLower.startsWith('drop database') ||
+              qLower.startsWith('create table') || qLower.startsWith('drop table') ||
+              qLower.startsWith('use ')) {
+            loadDatabasesAndTables();
+          }
+        } else {
+          const errMsg = data.error || 'Unknown query error';
+          statusBadge.className = 'stat-badge error';
+          statusBadge.textContent = 'Error';
+          rowsBadge.textContent = '📊 0 rows';
+          showToast(`SQL Error: ${errMsg.length > 60 ? errMsg.substring(0, 60) + '...' : errMsg}`, 'error');
+          renderError(errMsg, query, duration);
+        }
+      } catch (err) {
+        statusBadge.className = 'stat-badge error';
+        statusBadge.textContent = 'Failed';
+        showToast(`Request Failed: ${err.message}`, 'error');
+        renderError(err.message, query, 0);
+      } finally {
+        runBtn.disabled = false;
+        runBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Run Query
+        `;
+      }
+    }
+
+    function parseSqlErrorLocation(errorMsg, query) {
+      if (!errorMsg) return null;
+      const match = errorMsg.match(/Line:\s*(\d+)(?:,\s*Column:\s*(\d+))?/i) ||
+                    errorMsg.match(/line\s*(\d+)/i);
+      if (!match) return null;
+
+      const line = parseInt(match[1], 10);
+      const col = match[2] ? parseInt(match[2], 10) : null;
+      let lineContent = '';
+      if (query) {
+        const lines = query.split('\n');
+        if (line > 0 && line <= lines.length) {
+          lineContent = lines[line - 1].trim();
+        }
+      }
+      return { line, col, lineContent };
+    }
+
+    function dismissSqlError() {
+      const banner = document.getElementById('sqlErrorBanner');
+      if (banner) banner.style.display = 'none';
+      const wrapper = document.getElementById('editorWrapper');
+      if (wrapper) wrapper.classList.remove('has-error');
+      updateLines(null);
+    }
+
+    function copySqlError() {
+      const msg = document.getElementById('sqlErrorMsg')?.textContent || state.lastError || '';
+      if (msg) {
+        navigator.clipboard.writeText(msg).then(() => {
+          showToast('SQL Error copied to clipboard', 'success');
+        }).catch(() => {
+          showToast('Failed to copy to clipboard', 'error');
+        });
+      }
+    }
+
+    function extractTableNameFromQuery(query) {
+      if (!query) return null;
+      const match = query.match(/\bfrom\s+[`"]?([a-zA-Z0-9_]+)[`"]?/i) ||
+                    query.match(/\binto\s+[`"]?([a-zA-Z0-9_]+)[`"]?/i) ||
+                    query.match(/\bupdate\s+[`"]?([a-zA-Z0-9_]+)[`"]?/i);
+      if (match) {
+        const tbl = match[1].toLowerCase();
+        if (['users', 'databases', 'tables', 'status'].includes(tbl) && !state.databases.includes(state.activeDb)) {
+          return null;
+        }
+        return match[1];
+      }
+      return null;
+    }
+
+    function isVectorValue(val) {
+      if (Array.isArray(val)) {
+        return val.length >= 3 && val.every(v => typeof v === 'number');
+      }
+      if (typeof val === 'string' && val.trim().startsWith('[') && val.trim().endsWith(']')) {
+        try {
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) && parsed.length >= 3 && parsed.every(v => typeof v === 'number');
+        } catch (_) {
+          return false;
+        }
+      }
+      return false;
+    }
+
+    function getParsedVector(val) {
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (_) {}
+      }
+      return [];
+    }
+
+    function renderResults(resultData, query, duration) {
+      const tableView = document.getElementById('tableView');
+      const terminalView = document.getElementById('terminalView');
+      const jsonView = document.getElementById('jsonView');
+
+      // 1. JSON View
+      jsonView.textContent = typeof resultData === 'object' 
+        ? JSON.stringify(resultData, null, 2) 
+        : String(resultData);
+
+      // 2. Terminal View
+      const timestamp = new Date().toLocaleTimeString();
+      let terminalOutput = `\n[${timestamp}] pingdart (${state.activeDb})> ${query}\n`;
+      if (typeof resultData === 'object') {
+        terminalOutput += JSON.stringify(resultData, null, 2) + '\n';
+      } else {
+        terminalOutput += String(resultData) + '\n';
+      }
+      terminalOutput += `Query OK, duration: ${duration} ms\n`;
+      terminalView.textContent += terminalOutput;
+      terminalView.scrollTop = terminalView.scrollHeight;
+
+      // 3. Table View (phpMyAdmin Style)
+      if (Array.isArray(resultData) && resultData.length > 0 && typeof resultData[0] === 'object') {
+        state.tableData = resultData;
+        state.currentTable = extractTableNameFromQuery(query);
+        const allCols = Object.keys(resultData[0]);
+        state.tableColumns = allCols.filter(c => !c.includes('.') || !allCols.includes(c.split('.')[1]));
+        const columns = state.tableColumns;
+
+        // Manage Toolbar Buttons
+        const editAllBtn = document.getElementById('editAllBtn');
+        const addRecordBtn = document.getElementById('addRecordBtn');
+        if (state.currentTable) {
+          if (editAllBtn) editAllBtn.style.display = 'inline-flex';
+          if (addRecordBtn) addRecordBtn.style.display = 'inline-flex';
+        } else {
+          if (editAllBtn) editAllBtn.style.display = 'none';
+          if (addRecordBtn) addRecordBtn.style.display = 'none';
+        }
+
+        let html = '<table class="data-table"><thead><tr>';
+        
+        // Action / Row Header
+        if (state.currentTable) {
+          html += `<th style="width: ${state.isInlineEditMode ? '40px' : '125px'}; text-align: center;">${state.isInlineEditMode ? '#' : 'Actions'}</th>`;
+        }
+
+        columns.forEach(col => {
+          html += `<th>${escapeHtml(col)}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        resultData.forEach((row, rowIndex) => {
+          html += '<tr>';
+          if (state.currentTable) {
+            if (!state.isInlineEditMode) {
+              html += `
+                <td class="cell-actions">
+                  <button type="button" class="btn-row-action edit" onclick="openEditRecordModal(${rowIndex})" title="Edit Record">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    Edit
+                  </button>
+                  <button type="button" class="btn-row-action copy" onclick="openDuplicateRecordModal(${rowIndex})" title="Duplicate Record">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  </button>
+                  <button type="button" class="btn-row-action del" onclick="confirmDeleteRow(${rowIndex})" title="Delete Record">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </td>
+              `;
+            } else {
+              html += `<td style="text-align: center; color: var(--text-dim); font-size: 10px;">#${rowIndex + 1}</td>`;
+            }
+          }
+
+          columns.forEach(col => {
+            const val = row[col];
+            if (state.isInlineEditMode && state.currentTable && !isVectorValue(val)) {
+              const cellKey = `${rowIndex}:${col}`;
+              const isMod = !!state.modifiedCells[cellKey];
+              const curVal = isMod ? state.modifiedCells[cellKey].newVal : (val ?? '');
+              html += `<td>
+                <input type="text" class="inline-cell-input ${isMod ? 'cell-modified' : ''}" 
+                  value="${escapeHtml(String(curVal))}" 
+                  oninput="handleCellInput(this, ${rowIndex}, '${escapeHtml(col)}')" />
+              </td>`;
+            } else {
+              html += formatTableCell(val, rowIndex, col);
+            }
+          });
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        tableView.innerHTML = html;
+        switchResultTab('table');
+      } else {
+        // String or empty array message
+        const msg = typeof resultData === 'string' ? resultData : JSON.stringify(resultData);
+        tableView.innerHTML = `
+          <div style="padding: 24px; color: var(--emerald); font-family: var(--font-mono); font-size: 13px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            ${msg || 'Query executed successfully with 0 results returned.'}
+          </div>
+        `;
+        if (state.activeTab === 'table') {
+          switchResultTab('table');
+        }
+      }
+    }
+
+    function formatTableCell(val, rowIndex = 0, col = '') {
+      if (val === null || val === undefined) {
+        return '<td class="cell-null">NULL</td>';
+      }
+      if (isVectorValue(val)) {
+        const parsedVec = getParsedVector(val);
+        const preview = parsedVec.slice(0, 2).map(n => Number(n).toFixed(3)).join(', ');
+        return `
+          <td class="cell-vector">
+            <div class="vector-cell-pill" onclick="openVectorInspector(${rowIndex}, '${escapeHtml(col)}')" title="Click to view & edit vector (${parsedVec.length} dimensions)">
+              <span>🧠</span>
+              <span>Vector[${parsedVec.length}]</span>
+              <span class="vector-preview">(${preview}...)</span>
+            </div>
+          </td>
+        `;
+      }
+      if (typeof val === 'boolean') {
+        return `<td class="${val ? 'cell-bool-true' : 'cell-bool-false'}">${val ? 'TRUE' : 'FALSE'}</td>`;
+      }
+      if (typeof val === 'number') {
+        return `<td class="cell-num">${val}</td>`;
+      }
+      if (typeof val === 'object') {
+        return `<td>${JSON.stringify(val)}</td>`;
+      }
+      return `<td>${escapeHtml(String(val))}</td>`;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+
+    function handleCellInput(inputEl, rowIndex, col) {
+      const origVal = state.tableData[rowIndex] ? state.tableData[rowIndex][col] : '';
+      const newVal = inputEl.value;
+      const key = `${rowIndex}:${col}`;
+
+      if (String(newVal) !== String(origVal ?? '')) {
+        state.modifiedCells[key] = { rowIndex, col, origVal, newVal };
+        inputEl.classList.add('cell-modified');
+      } else {
+        delete state.modifiedCells[key];
+        inputEl.classList.remove('cell-modified');
+      }
+
+      const count = Object.keys(state.modifiedCells).length;
+      document.getElementById('modifiedCellsCount').textContent = count;
+    }
+
+    function toggleEditAllMode() {
+      state.isInlineEditMode = !state.isInlineEditMode;
+      const btn = document.getElementById('editAllBtn');
+      const btnText = document.getElementById('editAllBtnText');
+
+      if (state.isInlineEditMode) {
+        btn.style.color = '#f59e0b';
+        btn.style.background = 'rgba(245, 158, 11, 0.12)';
+        btnText.textContent = 'Exit Edit';
+        document.getElementById('inlineEditActionBar').style.display = 'flex';
+        showToast('Inline edit mode enabled: edit cells directly', 'info');
+      } else {
+        btn.style.color = 'var(--primary)';
+        btn.style.background = 'transparent';
+        btnText.textContent = 'Edit All';
+        document.getElementById('inlineEditActionBar').style.display = 'none';
+        state.modifiedCells = {};
+      }
+
+      if (state.tableData && state.tableData.length > 0) {
+        renderResults(state.tableData, document.getElementById('sqlEditor').value, '0');
+      }
+    }
+
+    function cancelInlineEditMode() {
+      state.isInlineEditMode = false;
+      state.modifiedCells = {};
+      const btn = document.getElementById('editAllBtn');
+      const btnText = document.getElementById('editAllBtnText');
+      if (btn && btnText) {
+        btn.style.color = 'var(--primary)';
+        btn.style.background = 'transparent';
+        btnText.textContent = 'Edit All';
+      }
+      document.getElementById('inlineEditActionBar').style.display = 'none';
+      if (state.tableData && state.tableData.length > 0) {
+        renderResults(state.tableData, document.getElementById('sqlEditor').value, '0');
+      }
+    }
+
+    async function saveAllInlineEdits() {
+      const modKeys = Object.keys(state.modifiedCells);
+      if (modKeys.length === 0) {
+        showToast('No modified cells to save', 'info');
+        return;
+      }
+
+      const tbl = state.currentTable;
+      if (!tbl) {
+        showToast('Unable to determine target table name', 'error');
+        return;
+      }
+
+      const rowGroups = {};
+      for (const key of modKeys) {
+        const item = state.modifiedCells[key];
+        if (!rowGroups[item.rowIndex]) rowGroups[item.rowIndex] = {};
+        rowGroups[item.rowIndex][item.col] = item.newVal;
+      }
+
+      const saveBtn = document.getElementById('saveInlineEditsBtn');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving changes...';
+      }
+
+      let updatedCount = 0;
+      let errorCount = 0;
+
+      try {
+        for (const [rIdxStr, updates] of Object.entries(rowGroups)) {
+          const rIdx = parseInt(rIdxStr, 10);
+          const row = state.tableData[rIdx];
+          const idCol = state.tableColumns.find(c => c.toLowerCase() === 'id') || state.tableColumns[0];
+          const idVal = row[idCol];
+
+          const assignments = Object.entries(updates).map(([c, v]) => {
+            const escaped = v.replace(/'/g, "\\'");
+            return `${c} = '${escaped}'`;
+          }).join(', ');
+
+          const sql = `UPDATE ${tbl} SET ${assignments} WHERE ${idCol} = '${idVal}';`;
+          
+          const res = await fetch('/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: state.token,
+              query: sql,
+              database: state.activeDb
+            })
+          });
+          const data = await res.json();
+          if (res.ok && data.status === 'success') {
+            updatedCount++;
+          } else {
+            errorCount++;
+          }
+        }
+
+        if (errorCount === 0) {
+          showToast(`Saved all changes (${updatedCount} rows updated)!`, 'success');
+        } else {
+          showToast(`Saved ${updatedCount} rows, ${errorCount} failed`, 'warning');
+        }
+
+        cancelInlineEditMode();
+        executeQuery();
+      } catch (err) {
+        showToast(`Failed to save edits: ${err.message}`, 'error');
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save All Changes (<span id="modifiedCellsCount">0</span>)`;
+        }
+      }
+    }
+
+    function openEditRecordModal(rowIndex) {
+      const row = state.tableData[rowIndex];
+      if (!row) return;
+
+      const tbl = state.currentTable || 'table';
+      const idCol = state.tableColumns.find(c => c.toLowerCase() === 'id') || state.tableColumns[0];
+      const idVal = row[idCol];
+
+      document.getElementById('editRecordTitle').innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Edit Record #${idVal} in ${escapeHtml(state.activeDb)}.${escapeHtml(tbl)}
+      `;
+      document.getElementById('editRecordRowIndex').value = rowIndex;
+
+      const container = document.getElementById('editRecordFields');
+      container.innerHTML = '';
+
+      state.tableColumns.forEach(col => {
+        const val = row[col];
+        const isVec = isVectorValue(val);
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        formGroup.style.marginBottom = '12px';
+
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.innerHTML = `${escapeHtml(col)} ${isVec ? '<span class="loc-pill" style="margin-left: 6px; background: #6366f1;">VECTOR</span>' : (col === idCol ? '<span class="loc-pill" style="margin-left: 6px; background: var(--primary);">PRIMARY KEY</span>' : '')}`;
+        formGroup.appendChild(label);
+
+        if (isVec) {
+          const textarea = document.createElement('textarea');
+          textarea.className = 'form-input';
+          textarea.name = col;
+          textarea.rows = 4;
+          textarea.style.fontFamily = 'var(--font-mono)';
+          textarea.style.fontSize = '11px';
+          textarea.value = typeof val === 'object' ? JSON.stringify(val) : String(val);
+          formGroup.appendChild(textarea);
+        } else {
+          const input = document.createElement('input');
+          input.className = 'form-input';
+          input.name = col;
+          input.type = 'text';
+          input.value = val === null || val === undefined ? '' : String(val);
+          if (col === idCol) {
+            input.readOnly = true;
+            input.style.opacity = '0.7';
+          }
+          formGroup.appendChild(input);
+        }
+
+        container.appendChild(formGroup);
+      });
+
+      document.getElementById('editRecordModal').classList.add('active');
+    }
+
+    async function saveRecordEdit() {
+      const rowIndex = parseInt(document.getElementById('editRecordRowIndex').value, 10);
+      const row = state.tableData[rowIndex];
+      const tbl = state.currentTable;
+      const idCol = state.tableColumns.find(c => c.toLowerCase() === 'id') || state.tableColumns[0];
+      const idVal = row[idCol];
+
+      const form = document.getElementById('editRecordForm');
+      const formData = new FormData(form);
+
+      const assignments = [];
+      for (const col of state.tableColumns) {
+        if (col === idCol) continue;
+        const newVal = formData.get(col);
+        if (newVal !== null) {
+          const escaped = newVal.replace(/'/g, "\\'");
+          assignments.push(`${col} = '${escaped}'`);
+        }
+      }
+
+      if (assignments.length === 0) {
+        closeModal('editRecordModal');
+        return;
+      }
+
+      const sql = `UPDATE ${tbl} SET ${assignments.join(', ')} WHERE ${idCol} = '${idVal}';`;
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: state.token, query: sql, database: state.activeDb })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`Record #${idVal} updated successfully!`, 'success');
+          closeModal('editRecordModal');
+          executeQuery();
+        } else {
+          showToast(`Update failed: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Failed: ${err.message}`, 'error');
+      }
+    }
+
+    async function confirmDeleteRow(rowIndex) {
+      const row = state.tableData[rowIndex];
+      const tbl = state.currentTable;
+      const idCol = state.tableColumns.find(c => c.toLowerCase() === 'id') || state.tableColumns[0];
+      const idVal = row[idCol];
+
+      if (!confirm(`Are you sure you want to permanently delete record #${idVal} from '${tbl}'?`)) {
+        return;
+      }
+
+      const sql = `DELETE FROM ${tbl} WHERE ${idCol} = '${idVal}';`;
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: state.token, query: sql, database: state.activeDb })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`Deleted record #${idVal} from ${tbl}`, 'success');
+          executeQuery();
+        } else {
+          showToast(`Delete failed: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Failed: ${err.message}`, 'error');
+      }
+    }
+
+    function openInsertRowModal() {
+      const tbl = state.currentTable;
+      if (!tbl) {
+        showToast('Please select or query a table first', 'info');
+        return;
+      }
+
+      document.getElementById('insertRecordTitle').innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add New Record to ${escapeHtml(state.activeDb)}.${escapeHtml(tbl)}
+      `;
+      const container = document.getElementById('insertRecordFields');
+      container.innerHTML = '';
+
+      state.tableColumns.forEach(col => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        formGroup.style.marginBottom = '12px';
+
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.textContent = col;
+        formGroup.appendChild(label);
+
+        if (col.toLowerCase().includes('embed') || col.toLowerCase().includes('vec')) {
+          const textarea = document.createElement('textarea');
+          textarea.className = 'form-input';
+          textarea.name = col;
+          textarea.rows = 3;
+          textarea.placeholder = '[0.002, 0.05, ...] (or leave empty if GENERATED FROM text)';
+          textarea.style.fontFamily = 'var(--font-mono)';
+          textarea.style.fontSize = '11px';
+          formGroup.appendChild(textarea);
+        } else {
+          const input = document.createElement('input');
+          input.className = 'form-input';
+          input.name = col;
+          input.type = 'text';
+          input.placeholder = `Enter value for ${col}...`;
+          formGroup.appendChild(input);
+        }
+
+        container.appendChild(formGroup);
+      });
+
+      document.getElementById('insertRecordModal').classList.add('active');
+    }
+
+    function openDuplicateRecordModal(rowIndex) {
+      openInsertRowModal();
+      const row = state.tableData[rowIndex];
+      if (!row) return;
+
+      const form = document.getElementById('insertRecordForm');
+      state.tableColumns.forEach(col => {
+        const input = form.elements[col];
+        if (input) {
+          if (col.toLowerCase() === 'id') {
+            const num = parseInt(row[col], 10);
+            input.value = isNaN(num) ? `${row[col]}_copy` : String(num + 10);
+          } else {
+            const val = row[col];
+            input.value = typeof val === 'object' ? JSON.stringify(val) : String(val ?? '');
+          }
+        }
+      });
+    }
+
+    async function saveNewRecord() {
+      const tbl = state.currentTable;
+      if (!tbl) return;
+
+      const form = document.getElementById('insertRecordForm');
+      const formData = new FormData(form);
+
+      const cols = [];
+      const vals = [];
+
+      for (const [col, val] of formData.entries()) {
+        if (val.trim() !== '') {
+          cols.push(col);
+          const escaped = val.replace(/'/g, "\\'");
+          vals.push(`'${escaped}'`);
+        }
+      }
+
+      if (cols.length === 0) {
+        showToast('Please fill in at least one field', 'warning');
+        return;
+      }
+
+      const sql = `INSERT INTO ${tbl} (${cols.join(', ')}) VALUES (${vals.join(', ')});`;
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: state.token, query: sql, database: state.activeDb })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`New record inserted into '${tbl}'!`, 'success');
+          closeModal('insertRecordModal');
+          executeQuery();
+        } else {
+          showToast(`Insert failed: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Failed: ${err.message}`, 'error');
+      }
+    }
+
+    function openVectorInspector(rowIndex, col) {
+      const row = state.tableData[rowIndex];
+      if (!row) return;
+      const val = row[col];
+      const vec = getParsedVector(val);
+
+      state.inspectedVector = { rowIndex, col, vector: vec };
+
+      document.getElementById('vecMetaDim').textContent = vec.length;
+      document.getElementById('vecColumnLabel').textContent = `Field: ${col}`;
+
+      let sumSq = 0;
+      let minVal = vec.length ? vec[0] : 0;
+      let maxVal = vec.length ? vec[0] : 0;
+      for (const n of vec) {
+        sumSq += n * n;
+        if (n < minVal) minVal = n;
+        if (n > maxVal) maxVal = n;
+      }
+      document.getElementById('vecMetaNorm').textContent = Math.sqrt(sumSq).toFixed(4);
+      document.getElementById('vecMetaMin').textContent = minVal.toFixed(4);
+      document.getElementById('vecMetaMax').textContent = maxVal.toFixed(4);
+
+      document.getElementById('vecRawTextarea').value = JSON.stringify(vec, null, 2);
+      document.getElementById('vectorInspectorModal').classList.add('active');
+    }
+
+    function copyInspectedVector() {
+      const text = document.getElementById('vecRawTextarea').value;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Vector array copied to clipboard!', 'success');
+      });
+    }
+
+    function useInspectedVectorInStudio() {
+      const text = document.getElementById('vecRawTextarea').value;
+      closeModal('vectorInspectorModal');
+      openVectorModal();
+      toggleVecQueryMode('custom');
+      document.querySelector('input[name="vecQueryMode"][value="custom"]').checked = true;
+      document.getElementById('vecCustomArrayInput').value = text;
+    }
+
+    async function saveInspectedVector() {
+      if (!state.inspectedVector) return;
+      const rawText = document.getElementById('vecRawTextarea').value.trim();
+      let newVec = null;
+      try {
+        newVec = JSON.parse(rawText);
+        if (!Array.isArray(newVec)) throw new Error('Must be a JSON array of floats');
+      } catch (e) {
+        showToast('Invalid vector JSON: ' + e.message, 'error');
+        return;
+      }
+
+      const { rowIndex, col } = state.inspectedVector;
+      const row = state.tableData[rowIndex];
+      const tbl = state.currentTable;
+      const idCol = state.tableColumns.find(c => c.toLowerCase() === 'id') || state.tableColumns[0];
+      const idVal = row[idCol];
+
+      const sql = `UPDATE ${tbl} SET ${col} = '${JSON.stringify(newVec)}' WHERE ${idCol} = '${idVal}';`;
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: state.token, query: sql, database: state.activeDb })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`Vector updated for record #${idVal}!`, 'success');
+          closeModal('vectorInspectorModal');
+          executeQuery();
+        } else {
+          showToast(`Update failed: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Failed: ${err.message}`, 'error');
+      }
+    }
+
+    function openVectorModal() {
+      const dbSelect = document.getElementById('vecSearchDbSelect');
+      dbSelect.innerHTML = '';
+      state.databases.forEach(db => {
+        const opt = document.createElement('option');
+        opt.value = db;
+        opt.textContent = db;
+        if (db === state.activeDb) opt.selected = true;
+        dbSelect.appendChild(opt);
+      });
+
+      onVecModalDbChange();
+      document.getElementById('vectorModal').classList.add('active');
+    }
+
+    async function onVecModalDbChange() {
+      const db = document.getElementById('vecSearchDbSelect').value;
+      const tableSelect = document.getElementById('vecSearchTableSelect');
+      tableSelect.innerHTML = '<option value="">Loading tables...</option>';
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: state.token, query: 'SHOW TABLES;', database: db })
+        });
+        const data = await res.json();
+        let tables = [];
+        if (data.status === 'success') {
+          tables = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+        }
+
+        tableSelect.innerHTML = '';
+        if (!tables || tables.length === 0) {
+          tableSelect.innerHTML = '<option value="">No tables found</option>';
+          return;
+        }
+
+        tables.forEach(t => {
+          const tName = t.Table || t.table_name || t;
+          const opt = document.createElement('option');
+          opt.value = tName;
+          opt.textContent = `${tName} (${t.Rows || 0} rows)`;
+          if (state.currentTable === tName || tName === 'ai_users') opt.selected = true;
+          tableSelect.appendChild(opt);
+        });
+
+        onVecModalTableChange();
+      } catch (err) {
+        tableSelect.innerHTML = '<option value="">Failed to load tables</option>';
+      }
+    }
+
+    async function onVecModalTableChange() {
+      const db = document.getElementById('vecSearchDbSelect').value;
+      const tbl = document.getElementById('vecSearchTableSelect').value;
+      const colSelect = document.getElementById('vecSearchColSelect');
+      const rowSelect = document.getElementById('vecReferenceRowSelect');
+      if (!tbl) return;
+
+      colSelect.innerHTML = '<option value="">Inspecting columns...</option>';
+      rowSelect.innerHTML = '<option value="">Loading rows...</option>';
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: state.token, query: `SELECT * FROM ${tbl} LIMIT 25;`, database: db })
+        });
+        const data = await res.json();
+        let rows = [];
+        if (data.status === 'success') {
+          rows = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+        }
+
+        window._vecModalRows = rows;
+
+        colSelect.innerHTML = '';
+        if (rows.length > 0) {
+          const cols = Object.keys(rows[0]).filter(c => !c.includes('.'));
+          cols.forEach(c => {
+            const isVec = rows.some(r => isVectorValue(r[c]));
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = isVec ? `🧠 ${c} (Vector)` : c;
+            if (isVec || c.toLowerCase().includes('embed') || c.toLowerCase().includes('vec')) {
+              opt.selected = true;
+            }
+            colSelect.appendChild(opt);
+          });
+        }
+        if (colSelect.options.length === 0) {
+          colSelect.innerHTML = '<option value="embedding">embedding</option>';
+        }
+
+        rowSelect.innerHTML = '';
+        if (rows.length === 0) {
+          rowSelect.innerHTML = '<option value="">No rows found</option>';
+        } else {
+          rows.forEach((r, idx) => {
+            const idCol = Object.keys(r).find(c => c.toLowerCase() === 'id') || Object.keys(r)[0];
+            const nameCol = Object.keys(r).find(c => c.toLowerCase() === 'name' || c.toLowerCase() === 'title') || '';
+            const preview = nameCol && r[nameCol] ? ` - ${r[nameCol]}` : '';
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = `#${r[idCol]}${preview}`;
+            rowSelect.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        colSelect.innerHTML = '<option value="embedding">embedding</option>';
+        rowSelect.innerHTML = '<option value="">Failed to load rows</option>';
+      }
+    }
+
+    function toggleVecQueryMode(mode) {
+      document.getElementById('vecQueryRowContainer').style.display = mode === 'row' ? 'block' : 'none';
+      document.getElementById('vecQueryCustomContainer').style.display = mode === 'custom' ? 'block' : 'none';
+    }
+
+    function generateRandomProbeVector() {
+      const dim = 384;
+      const vec = [];
+      let sumSq = 0;
+      for (let i = 0; i < dim; i++) {
+        const val = (Math.random() - 0.5) * 2;
+        vec.push(val);
+        sumSq += val * val;
+      }
+      const norm = Math.sqrt(sumSq);
+      const normalized = vec.map(v => parseFloat((v / norm).toFixed(6)));
+      document.getElementById('vecCustomArrayInput').value = JSON.stringify(normalized);
+      showToast('Generated 384D normalized probe vector!', 'success');
+    }
+
+    async function runVectorSearch() {
+      const db = document.getElementById('vecSearchDbSelect').value;
+      const tbl = document.getElementById('vecSearchTableSelect').value;
+      const col = document.getElementById('vecSearchColSelect').value;
+      const mode = document.querySelector('input[name="vecQueryMode"]:checked').value;
+      const topK = parseInt(document.getElementById('vecSearchTopK').value, 10) || 5;
+      const btn = document.getElementById('runVecSearchBtn');
+
+      let queryVec = null;
+      if (mode === 'row') {
+        const rowIdx = parseInt(document.getElementById('vecReferenceRowSelect').value, 10);
+        const rows = window._vecModalRows || [];
+        if (!rows[rowIdx]) {
+          showToast('Please select a reference row', 'error');
+          return;
+        }
+        queryVec = getParsedVector(rows[rowIdx][col]);
+        if (!queryVec || queryVec.length === 0) {
+          showToast(`Selected row has no vector in column '${col}'`, 'error');
+          return;
+        }
+      } else {
+        const raw = document.getElementById('vecCustomArrayInput').value.trim();
+        try {
+          queryVec = JSON.parse(raw);
+          if (!Array.isArray(queryVec) || queryVec.length < 3) {
+            throw new Error('Must be an array of float numbers');
+          }
+        } catch (e) {
+          showToast('Invalid custom vector array: ' + e.message, 'error');
+          return;
+        }
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Searching proximity graph...';
+      const t0 = performance.now();
+
+      try {
+        const res = await fetch('/vector/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            database: db,
+            table: tbl,
+            column: col,
+            vector: queryVec,
+            top_k: topK
+          })
+        });
+        const duration = (performance.now() - t0).toFixed(2);
+        const data = await res.json();
+
+        if (res.ok && data.status === 'success') {
+          let hits = [];
+          try {
+            hits = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+          } catch (_) {
+            hits = [];
+          }
+
+          renderVectorSearchResults(hits, tbl, db, duration);
+        } else {
+          showToast(`Vector search error: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Request failed: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Execute Vector Search`;
+      }
+    }
+
+    function renderVectorSearchResults(hits, tbl, db, duration) {
+      const container = document.getElementById('vecResultsList');
+      const area = document.getElementById('vecResultsArea');
+      const countEl = document.getElementById('vecResultsCount');
+      const durEl = document.getElementById('vecDurationText');
+
+      area.style.display = 'block';
+      countEl.textContent = hits.length;
+      durEl.textContent = `⏱ Completed in ${duration} ms`;
+
+      if (hits.length === 0) {
+        container.innerHTML = '<div style="padding: 16px; color: var(--text-dim); text-align: center;">No vector nearest neighbors found.</div>';
+        return;
+      }
+
+      const cachedRows = window._vecModalRows || [];
+      const rowMap = {};
+      cachedRows.forEach(r => {
+        const id = r.id !== undefined ? String(r.id) : (r[`${tbl}.id`] || '');
+        if (id) rowMap[id] = r;
+      });
+
+      let html = '';
+      hits.forEach((hit, idx) => {
+        const hitId = String(hit.id);
+        const rowData = rowMap[hitId] || {};
+        const sim = typeof hit.similarity === 'number' ? hit.similarity : 0;
+        const simPct = Math.max(0, Math.min(100, Math.round(sim * 100)));
+        const dist = typeof hit.distance === 'number' ? hit.distance.toFixed(4) : '0.000';
+        const badgeClass = simPct >= 80 ? 'high' : (simPct >= 50 ? 'med' : 'low');
+
+        const fields = [];
+        for (const [k, v] of Object.entries(rowData)) {
+          if (k.includes('.')) continue;
+          if (isVectorValue(v)) continue;
+          fields.push({ k, v: String(v) });
+        }
+
+        html += `
+          <div class="vector-result-card">
+            <div class="vector-result-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="vector-rank-badge">#${idx + 1}</span>
+                <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">Record ID: ${escapeHtml(hitId)}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 11px; color: var(--text-dim);">Distance: ${dist}</span>
+                <span class="similarity-match-badge ${badgeClass}">
+                  ${simPct}% Match
+                </span>
+              </div>
+            </div>
+            <div class="similarity-progress-bar">
+              <div class="similarity-progress-fill" style="width: ${simPct}%;"></div>
+            </div>
+            ${fields.length > 0 ? `
+              <div class="vector-row-fields">
+                ${fields.map(f => `
+                  <div class="vector-field-item">
+                    <div class="vector-field-name">${escapeHtml(f.k)}</div>
+                    <div class="vector-field-val">${escapeHtml(f.v)}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function renderError(errorMessage, query, duration) {
+      state.lastError = errorMessage;
+      const parsedLoc = parseSqlErrorLocation(errorMessage, query);
+
+      // 1. In-Editor Error Banner & Line Highlight
+      const banner = document.getElementById('sqlErrorBanner');
+      const bannerMsg = document.getElementById('sqlErrorMsg');
+      const locBadge = document.getElementById('sqlErrorLocBadge');
+      const wrapper = document.getElementById('editorWrapper');
+
+      if (banner && bannerMsg) {
+        bannerMsg.textContent = errorMessage;
+        if (parsedLoc && parsedLoc.line) {
+          locBadge.style.display = 'inline-block';
+          locBadge.textContent = `Line ${parsedLoc.line}${parsedLoc.col ? `, Col ${parsedLoc.col}` : ''}`;
+          updateLines(parsedLoc.line);
+        } else {
+          locBadge.style.display = 'none';
+          updateLines(null);
+        }
+        banner.style.display = 'block';
+      }
+      if (wrapper) {
+        wrapper.classList.add('has-error');
+      }
+
+      // 2. Rich Results Error Card in Table View (phpMyAdmin Style)
+      const tableView = document.getElementById('tableView');
+      const terminalView = document.getElementById('terminalView');
+      const jsonView = document.getElementById('jsonView');
+
+      tableView.innerHTML = `
+        <div class="sql-error-card">
+          <div class="sql-error-card-header">
+            <div class="sql-error-card-badge">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>SQL Execution Failed</span>
+            </div>
+            <div class="sql-error-card-meta">
+              <span>Target DB: <strong>${escapeHtml(state.activeDb)}</strong></span>
+              <span>⏱ ${duration} ms</span>
+            </div>
+          </div>
+
+          <div class="sql-error-card-body">
+            <div class="sql-error-code-box">
+              <div class="sql-error-label">PingDart Engine Error:</div>
+              <div class="sql-error-message-text">${escapeHtml(errorMessage)}</div>
+            </div>
+
+            ${parsedLoc && parsedLoc.line ? `
+              <div class="sql-error-loc-highlight">
+                <span class="loc-pill">📍 Line ${parsedLoc.line}${parsedLoc.col ? `, Column ${parsedLoc.col}` : ''}</span>
+                <span class="loc-snippet">${escapeHtml(parsedLoc.lineContent || '')}</span>
+              </div>
+            ` : ''}
+
+            <div class="sql-error-tips">
+              <div class="tips-title">💡 How to resolve:</div>
+              <ul>
+                <li><strong>Syntax check:</strong> Verify spelling of SQL commands (e.g. <code>SELECT</code>, <code>INSERT INTO</code>, <code>SHOW TABLES</code>, <code>CREATE TABLE</code>).</li>
+                <li><strong>Table & Schema existence:</strong> Confirm the table exists in active database <code>${escapeHtml(state.activeDb)}</code>.</li>
+                <li><strong>String quotes:</strong> Use standard single quotes <code>'value'</code> around text values.</li>
+                <li><strong>Statement terminator:</strong> End queries with a semicolon <code>;</code>.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="sql-error-card-footer">
+            <button class="btn-ghost" onclick="copySqlError()" style="font-size: 11px; padding: 5px 10px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy Error
+            </button>
+            <button class="btn-ghost" onclick="switchResultTab('terminal')" style="font-size: 11px; padding: 5px 10px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              View in Terminal
+            </button>
+          </div>
+        </div>
+      `;
+
+      // 3. Switch to table view to display the error card prominently
+      switchResultTab('table');
+
+      // 4. Update Terminal View
+      const timestamp = new Date().toLocaleTimeString();
+      terminalView.textContent += `\n[${timestamp}] pingdart (${state.activeDb})> ${query}\n❌ ERROR: ${errorMessage}\n`;
+      terminalView.scrollTop = terminalView.scrollHeight;
+
+      // 5. Update JSON View
+      jsonView.textContent = JSON.stringify({ status: "error", error: errorMessage, query: query }, null, 2);
+    }
+
+    function switchResultTab(tab) {
+      state.activeTab = tab;
+      document.getElementById('tabTable').classList.toggle('active', tab === 'table');
+      document.getElementById('tabTerminal').classList.toggle('active', tab === 'terminal');
+      document.getElementById('tabJson').classList.toggle('active', tab === 'json');
+
+      document.getElementById('tableView').style.display = tab === 'table' ? 'block' : 'none';
+      document.getElementById('terminalView').style.display = tab === 'terminal' ? 'block' : 'none';
+      document.getElementById('jsonView').style.display = tab === 'json' ? 'block' : 'none';
+    }
+
+    function showCreateDbModal() {
+      document.getElementById('createDbModal').classList.add('active');
+      document.getElementById('newDbName').focus();
+    }
+
+    function showCreateUserModal() {
+      document.getElementById('createUserModal').classList.add('active');
+      document.getElementById('newUserName').focus();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    async function handleCreateDbSubmit(e) {
+      e.preventDefault();
+      const dbName = document.getElementById('newDbName').value.trim();
+      if (!dbName) return;
+
+      closeModal('createDbModal');
+      setQuery(`CREATE DATABASE ${dbName};`);
+      await executeQuery();
+      document.getElementById('newDbName').value = '';
+    }
+
+    // --- DB EXPORT LOGIC ---
+    function openExportModal() {
+      const select = document.getElementById('exportDbSelect');
+      select.innerHTML = '';
+      state.databases.forEach(db => {
+        const opt = document.createElement('option');
+        opt.value = db;
+        opt.textContent = db;
+        if (db === state.activeDb) opt.selected = true;
+        select.appendChild(opt);
+      });
+      document.getElementById('exportDbNameLabel').textContent = state.activeDb;
+      document.getElementById('exportStatusMsg').textContent = '';
+      document.getElementById('exportModal').classList.add('active');
+    }
+
+    async function fetchExportData(dbName) {
+      const res = await fetch('/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: state.token, database: dbName })
+      });
+      const data = await res.json();
+      if (!res.ok || data.status !== 'success') {
+        throw new Error(data.error || 'Failed to export database');
+      }
+      return data;
+    }
+
+    async function runExportDownload() {
+      const dbName = document.getElementById('exportDbSelect').value;
+      const format = document.querySelector('input[name="exportFormat"]:checked').value;
+      const incStructure = document.getElementById('exportIncludeStructure').checked;
+      const incData = document.getElementById('exportIncludeData').checked;
+      const statusMsg = document.getElementById('exportStatusMsg');
+      const btn = document.getElementById('downloadExportBtn');
+
+      btn.disabled = true;
+      statusMsg.textContent = 'Fetching database records...';
+
+      try {
+        const exportRes = await fetchExportData(dbName);
+        const collections = exportRes.data || {};
+
+        if (format === 'json') {
+          const blob = new Blob([JSON.stringify(exportRes, null, 2)], { type: 'application/json' });
+          downloadBlob(blob, `pingdart_${dbName}_backup.json`);
+          showToast(`Exported ${Object.keys(collections).length} collections as JSON!`, 'success');
+        } else {
+          // Generate SQL Dump
+          let sql = `-- PingDart DB SQL Dump\n`;
+          sql += `-- Target Database: ${dbName}\n`;
+          sql += `-- Generated on: ${new Date().toISOString()}\n\n`;
+          sql += `CREATE DATABASE IF NOT EXISTS ${dbName};\nUSE ${dbName};\n\n`;
+
+          for (const [table, rows] of Object.entries(collections)) {
+            if (incStructure) {
+              if (rows.length > 0 && typeof rows[0] === 'object') {
+                const cols = Object.keys(rows[0]).map(c => `${c} TEXT`).join(', ');
+                sql += `CREATE TABLE IF NOT EXISTS ${table} (${cols});\n`;
+              } else {
+                sql += `CREATE TABLE IF NOT EXISTS ${table} (id TEXT PRIMARY KEY);\n`;
+              }
+            }
+            if (incData && Array.isArray(rows)) {
+              for (const row of rows) {
+                const cols = Object.keys(row);
+                if (cols.length === 0) continue;
+                const vals = cols.map(c => {
+                  const v = row[c];
+                  if (v === null || v === undefined) return 'NULL';
+                  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+                  return `'${String(v).replace(/'/g, "''")}'`;
+                });
+                sql += `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${vals.join(', ')});\n`;
+              }
+            }
+            sql += '\n';
+          }
+
+          const blob = new Blob([sql], { type: 'application/sql' });
+          downloadBlob(blob, `pingdart_${dbName}_dump.sql`);
+          showToast(`Exported ${Object.keys(collections).length} tables as SQL!`, 'success');
+        }
+        closeModal('exportModal');
+      } catch (err) {
+        statusMsg.textContent = 'Export error: ' + err.message;
+        showToast('Export failed: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function copyExportToClipboard() {
+      const dbName = document.getElementById('exportDbSelect').value;
+      const format = document.querySelector('input[name="exportFormat"]:checked').value;
+      const incStructure = document.getElementById('exportIncludeStructure').checked;
+      const incData = document.getElementById('exportIncludeData').checked;
+
+      try {
+        const exportRes = await fetchExportData(dbName);
+        let content = '';
+        if (format === 'json') {
+          content = JSON.stringify(exportRes, null, 2);
+        } else {
+          content = `-- PingDart DB SQL Dump for ${dbName}\nUSE ${dbName};\n\n`;
+          for (const [table, rows] of Object.entries(exportRes.data || {})) {
+            if (incStructure && rows.length > 0) {
+              content += `CREATE TABLE IF NOT EXISTS ${table} (${Object.keys(rows[0]).join(' TEXT, ')} TEXT);\n`;
+            }
+            if (incData && Array.isArray(rows)) {
+              for (const row of rows) {
+                const cols = Object.keys(row);
+                const vals = cols.map(c => `'${String(row[c]).replace(/'/g, "''")}'`);
+                content += `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${vals.join(', ')});\n`;
+              }
+            }
+          }
+        }
+        await navigator.clipboard.writeText(content);
+        showToast('Database dump copied to clipboard!', 'success');
+        closeModal('exportModal');
+      } catch (err) {
+        showToast('Copy failed: ' + err.message, 'error');
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // --- DB IMPORT LOGIC ---
+    function openImportModal() {
+      const select = document.getElementById('importDbSelect');
+      select.innerHTML = '';
+      state.databases.forEach(db => {
+        const opt = document.createElement('option');
+        opt.value = db;
+        opt.textContent = db;
+        if (db === state.activeDb) opt.selected = true;
+        select.appendChild(opt);
+      });
+      document.getElementById('importDbNameLabel').textContent = state.activeDb;
+      document.getElementById('importTextInput').value = '';
+      document.getElementById('importFileInput').value = '';
+      document.getElementById('dropzoneLabel').textContent = 'Click or drag & drop a .sql or .json file here';
+      document.getElementById('importStatusMsg').style.display = 'none';
+      document.getElementById('importModal').classList.add('active');
+    }
+
+    function handleFilePicked(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('dropzoneLabel').textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        document.getElementById('importTextInput').value = text;
+      };
+      reader.readAsText(file);
+    }
+
+    async function executeDatabaseImport() {
+      const targetDb = document.getElementById('importDbSelect').value;
+      const rawContent = document.getElementById('importTextInput').value.trim();
+      const statusMsg = document.getElementById('importStatusMsg');
+      const btn = document.getElementById('runImportBtn');
+
+      if (!rawContent) {
+        showToast('Please select a file or paste content to import', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      statusMsg.style.display = 'block';
+      statusMsg.textContent = 'Processing import...';
+
+      try {
+        let isJson = false;
+        let jsonData = null;
+        if (rawContent.startsWith('{')) {
+          try {
+            jsonData = JSON.parse(rawContent);
+            isJson = true;
+          } catch (_) {}
+        }
+
+        if (isJson) {
+          const tablesData = jsonData.data || jsonData;
+          const res = await fetch('/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: state.token,
+              database: targetDb,
+              data: tablesData
+            })
+          });
+          const resData = await res.json();
+          if (res.ok && resData.status === 'success') {
+            showToast(`Imported ${resData.imported_collections} tables (${resData.imported_rows} rows) into '${targetDb}'!`, 'success');
+            closeModal('importModal');
+            loadDatabasesAndTables();
+          } else {
+            throw new Error(resData.error || 'Import failed');
+          }
+        } else {
+          // SQL script execution
+          const stmts = rawContent.split(';').map(s => s.trim()).filter(s => s.length > 0);
+          let executed = 0;
+          for (const stmt of stmts) {
+            statusMsg.textContent = `Executing SQL (${executed + 1}/${stmts.length})...`;
+            const qRes = await fetch('/query', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                token: state.token,
+                database: targetDb,
+                query: stmt + ';'
+              })
+            });
+            const qData = await qRes.json();
+            if (!qRes.ok || qData.status === 'error') {
+              console.warn(`Query warning in import: ${stmt}`, qData.error);
+            }
+            executed++;
+          }
+          showToast(`Executed ${executed} SQL statements into '${targetDb}'!`, 'success');
+          closeModal('importModal');
+          loadDatabasesAndTables();
+        }
+      } catch (err) {
+        statusMsg.textContent = 'Import error: ' + err.message;
+        showToast('Import error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // --- USERS & PERMISSIONS MANAGEMENT LOGIC ---
+    let cachedUsersList = [];
+    let currentEditingRoles = [];
+
+    function openUsersModal() {
+      document.getElementById('usersModal').classList.add('active');
+      switchUsersTab('list');
+      loadUsersList();
+    }
+
+    function switchUsersTab(tabName) {
+      document.getElementById('userTabListBtn').classList.toggle('active', tabName === 'list');
+      document.getElementById('userTabEditBtn').classList.toggle('active', tabName === 'edit');
+      document.getElementById('usersListView').style.display = tabName === 'list' ? 'block' : 'none';
+      document.getElementById('usersEditView').style.display = tabName === 'edit' ? 'block' : 'none';
+    }
+
+    async function loadUsersList() {
+      const tbody = document.getElementById('userTableBody');
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-dim); padding: 16px;">Loading user records...</td></tr>';
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            database: 'default',
+            query: 'SHOW USERS;'
+          })
+        });
+        const data = await res.json();
+        let users = [];
+        try {
+          users = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+        } catch (_) {
+          users = [];
+        }
+
+        if (!Array.isArray(users) || users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-dim); padding: 16px;">No users found</td></tr>';
+          return;
+        }
+
+        cachedUsersList = users;
+        document.getElementById('userCountBadge').textContent = users.length;
+
+        tbody.innerHTML = '';
+        users.forEach(u => {
+          const username = u.User || u.username;
+          const host = u.Host || u.allowed_ip || '%';
+          const roles = Array.isArray(u.Roles) ? u.Roles : [];
+
+          let rolesHtml = '';
+          if (roles.length === 0) {
+            rolesHtml = '<span style="color: var(--text-dim); font-size: 11px;">No explicit DB grants</span>';
+          } else {
+            roles.forEach(r => {
+              rolesHtml += `<span class="badge-role">${escapeHtml(String(r))}</span>`;
+            });
+          }
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="user-avatar" style="width: 22px; height: 22px; font-size: 10px;">${username.charAt(0).toUpperCase()}</div>
+                <span style="font-weight: 600;">${username}</span>
+                ${username === 'admin' ? '<span style="font-size: 9px; background: rgba(16, 185, 129, 0.15); color: var(--emerald); padding: 1px 5px; border-radius: 4px; font-weight: 700;">ROOT</span>' : ''}
+              </div>
+            </td>
+            <td>
+              <span class="badge-ip">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                ${escapeHtml(host)}
+              </span>
+            </td>
+            <td>${rolesHtml}</td>
+            <td style="text-align: right;">
+              <button class="btn-action-mini" onclick="editUserConfig('${username}', '${host}')" title="Configure user IP & DB permissions">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Edit
+              </button>
+              ${username !== 'admin' ? `
+                <button class="btn-action-mini danger" onclick="confirmDropUser('${username}')" title="Delete User">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                </button>
+              ` : ''}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="color: var(--rose); padding: 16px;">Failed to load users: ${err.message}</td></tr>`;
+      }
+    }
+
+    function prepareCreateUser() {
+      document.getElementById('cfgUsername').value = '';
+      document.getElementById('cfgUsername').readOnly = false;
+      document.getElementById('cfgPassword').value = '';
+      document.getElementById('cfgPassword').placeholder = 'Enter password';
+      document.getElementById('cfgAllowedIp').value = '%';
+      currentEditingRoles = [];
+      updateUserRolesContainer();
+      populateDbSelect();
+      switchUsersTab('edit');
+      document.getElementById('cfgUsername').focus();
+    }
+
+    function editUserConfig(username, host) {
+      document.getElementById('cfgUsername').value = username;
+      document.getElementById('cfgUsername').readOnly = (username === 'admin');
+      document.getElementById('cfgPassword').value = '';
+      document.getElementById('cfgPassword').placeholder = 'Leave blank to keep unchanged';
+      document.getElementById('cfgAllowedIp').value = host;
+
+      const userObj = cachedUsersList.find(u => (u.User || u.username) === username);
+      currentEditingRoles = userObj && Array.isArray(userObj.Roles) ? [...userObj.Roles] : [];
+
+      updateUserRolesContainer();
+      populateDbSelect();
+      switchUsersTab('edit');
+    }
+
+    function populateDbSelect() {
+      const select = document.getElementById('cfgDbSelect');
+      select.innerHTML = '<option value="*">* (All Databases)</option>';
+      state.databases.forEach(db => {
+        const opt = document.createElement('option');
+        opt.value = db;
+        opt.textContent = db;
+        select.appendChild(opt);
+      });
+    }
+
+    function updateUserRolesContainer() {
+      const container = document.getElementById('userActiveRolesContainer');
+      if (!currentEditingRoles || currentEditingRoles.length === 0) {
+        container.innerHTML = '<div style="font-size: 11px; color: var(--text-dim);">No specific database privileges assigned yet. Use the selector above to grant permissions.</div>';
+        return;
+      }
+      let html = '<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">';
+      currentEditingRoles.forEach((roleStr, idx) => {
+        html += `
+          <span class="badge-role" style="padding: 3px 8px; font-size: 11px;">
+            ${escapeHtml(roleStr)}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="cursor: pointer; margin-left: 4px;" onclick="removeRoleAt(${idx})"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </span>
+        `;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function removeRoleAt(idx) {
+      const roleStr = currentEditingRoles[idx];
+      const username = document.getElementById('cfgUsername').value.trim();
+      currentEditingRoles.splice(idx, 1);
+      updateUserRolesContainer();
+
+      const match = roleStr.match(/\("?([^"\)]+)"?\)/);
+      if (match && match[1] && username) {
+        const db = match[1];
+        fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            database: 'default',
+            query: `REVOKE ALL ON ${db} FROM ${username};`
+          })
+        }).then(() => showToast(`Revoked permission on '${db}' from '${username}'`, 'info'));
+      }
+    }
+
+    async function applyPrivilegeToUser() {
+      const username = document.getElementById('cfgUsername').value.trim();
+      const db = document.getElementById('cfgDbSelect').value;
+      const priv = document.getElementById('cfgPrivilegeSelect').value;
+
+      if (!username) {
+        showToast('Please enter a username first', 'error');
+        return;
+      }
+
+      const roleDisplay = `${priv === 'ALL' ? 'DatabaseAdmin' : priv === 'READWRITE' ? 'ReadWrite' : 'ReadOnly'}("${db}")`;
+      if (!currentEditingRoles.includes(roleDisplay)) {
+        currentEditingRoles.push(roleDisplay);
+        updateUserRolesContainer();
+      }
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            database: 'default',
+            query: `GRANT ${priv} ON ${db} TO ${username};`
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`Granted ${priv} on '${db}' to '${username}'!`, 'success');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function handleSaveUserSubmit(e) {
+      e.preventDefault();
+      const username = document.getElementById('cfgUsername').value.trim();
+      const password = document.getElementById('cfgPassword').value;
+      const allowedIp = document.getElementById('cfgAllowedIp').value.trim() || '%';
+
+      if (!username) return;
+
+      const isExisting = cachedUsersList.some(u => (u.User || u.username) === username);
+
+      try {
+        if (!isExisting) {
+          if (!password) {
+            showToast('Password is required for new user', 'error');
+            return;
+          }
+          const res = await fetch('/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: state.token,
+              database: 'default',
+              query: `CREATE USER '${username}'@'${allowedIp}' PASSWORD '${password}';`
+            })
+          });
+          const data = await res.json();
+          if (!res.ok || data.status !== 'success') {
+            throw new Error(data.error || 'Failed to create user');
+          }
+          showToast(`User '${username}' created with IP restriction: '${allowedIp}'`, 'success');
+        } else {
+          let alterQuery = `ALTER USER '${username}' IP '${allowedIp}'`;
+          if (password) {
+            alterQuery += ` PASSWORD '${password}'`;
+          }
+          alterQuery += ';';
+
+          const res = await fetch('/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: state.token,
+              database: 'default',
+              query: alterQuery
+            })
+          });
+          const data = await res.json();
+          if (!res.ok || data.status !== 'success') {
+            throw new Error(data.error || 'Failed to update user');
+          }
+          showToast(`Updated user '${username}' settings & IP: '${allowedIp}'`, 'success');
+        }
+
+        switchUsersTab('list');
+        await loadUsersList();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function confirmDropUser(username) {
+      if (!confirm(`Are you sure you want to delete user account '${username}'?`)) return;
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            database: 'default',
+            query: `DROP USER '${username}';`
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`User '${username}' deleted successfully`, 'success');
+          await loadUsersList();
+        } else {
+          showToast(data.error || 'Failed to drop user', 'error');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // --- DROP ACTIVE DATABASE LOGIC ---
+    function confirmDropActiveDb() {
+      if (state.activeDb === 'default') {
+        showToast("The system 'default' database cannot be dropped.", 'error');
+        return;
+      }
+      document.getElementById('dropDbTargetName').textContent = state.activeDb;
+      document.getElementById('dropDbModal').classList.add('active');
+    }
+
+    async function executeDropActiveDb() {
+      const dbToDrop = state.activeDb;
+      closeModal('dropDbModal');
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: state.token,
+            database: 'default',
+            query: `DROP DATABASE ${dbToDrop};`
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast(`Database '${dbToDrop}' dropped successfully!`, 'success');
+          state.activeDb = 'default';
+          document.getElementById('activeDbSelect').value = 'default';
+          document.getElementById('targetDbHint').textContent = 'default';
+          await loadDatabasesAndTables();
+        } else {
+          showToast(data.error || 'Failed to drop database', 'error');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function copyResultJson() {
+      if (!state.lastResult) return;
+      const text = JSON.stringify(state.lastResult, null, 2);
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Result JSON copied to clipboard!', 'success');
+      });
+    }
+
+    function exportResultCsv() {
+      if (!state.lastResult || !state.lastResult.result) {
+        showToast('No query data to export', 'error');
+        return;
+      }
+      let rows = [];
+      try {
+        rows = typeof state.lastResult.result === 'string' ? JSON.parse(state.lastResult.result) : state.lastResult.result;
+      } catch (_) {
+        showToast('Result is not tabular data', 'error');
+        return;
+      }
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        showToast('No tabular rows to export', 'error');
+        return;
+      }
+
+      const headers = Object.keys(rows[0]);
+      let csv = headers.join(',') + '\n';
+      rows.forEach(r => {
+        const line = headers.map(h => {
+          let val = r[h] === null || r[h] === undefined ? '' : String(r[h]);
+          if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+            val = `"${val.replace(/"/g, '""')}"`;
+          }
+          return val;
+        }).join(',');
+        csv += line + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pingdart_export_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV downloaded successfully!', 'success');
+    }
+  </script>
+</body>
+</html>

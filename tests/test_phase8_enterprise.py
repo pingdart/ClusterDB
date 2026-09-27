@@ -9,7 +9,7 @@ import requests
 SERVER_PORT = 4680
 BASE_URL = f"http://127.0.0.1:{SERVER_PORT}"
 DATA_DIR = "data_enterprise_test"
-BACKUP_DIR = f"pingdart_backups_{SERVER_PORT}"
+BACKUP_DIR = os.environ.get("PINGDART_BACKUP_DIR", os.path.join("backups", f"pingdart_backups_{SERVER_PORT}"))
 
 def clean_data():
     if os.path.exists(DATA_DIR):
