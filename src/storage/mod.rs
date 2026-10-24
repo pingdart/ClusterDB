@@ -1,3 +1,14 @@
+pub mod lock_manager;
+pub mod page;
+pub mod buffer_pool;
+
+#[allow(unused_imports)]
+pub use lock_manager::{LockManager, LockMode, ResourceId};
+#[allow(unused_imports)]
+pub use page::{PageId, SlottedPage, PAGE_SIZE};
+#[allow(unused_imports)]
+pub use buffer_pool::{BufferPoolManager, DiskManager};
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;

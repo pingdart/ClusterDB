@@ -1,0 +1,46 @@
+[
+  {
+    "_id": { "$oid": "66f1234567890abcdef12301" },
+    "patient_name": "John Doe",
+    "age": 45,
+    "blood_group": "O+",
+    "condition": "Hypertension",
+    "admission_date": { "$date": "2026-08-15T09:30:00Z" },
+    "hospital_bill": { "$numberLong": "45000" },
+    "room_number": { "$numberInt": "304" },
+    "status": "Admitted"
+  },
+  {
+    "_id": { "$oid": "66f1234567890abcdef12302" },
+    "patient_name": "Jane Smith",
+    "age": 32,
+    "blood_group": "A+",
+    "condition": "Fractured Arm",
+    "admission_date": { "$date": "2026-08-16T14:15:00Z" },
+    "hospital_bill": { "$numberLong": "18500" },
+    "room_number": { "$numberInt": "108" },
+    "status": "Discharged"
+  },
+  {
+    "_id": { "$oid": "66f1234567890abcdef12303" },
+    "patient_name": "Carlos Gomez",
+    "age": 58,
+    "blood_group": "B+",
+    "condition": "Type 2 Diabetes Checkup",
+    "admission_date": { "$date": "2026-08-17T11:00:00Z" },
+    "hospital_bill": { "$numberLong": "8200" },
+    "room_number": { "$numberInt": "215" },
+    "status": "Outpatient"
+  },
+  {
+    "_id": { "$oid": "66f1234567890abcdef12304" },
+    "patient_name": "Priya Sharma",
+    "age": 28,
+    "blood_group": "AB+",
+    "condition": "Acute Bronchitis",
+    "admission_date": { "$date": "2026-08-18T16:45:00Z" },
+    "hospital_bill": { "$numberLong": "24000" },
+    "room_number": { "$numberInt": "402" },
+    "status": "Admitted"
+  }
+]

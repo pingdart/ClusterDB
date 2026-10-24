@@ -134,4 +134,28 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_firebase_and_json_source() -> anyhow::Result<()> {
+        let path = std::env::temp_dir().join(format!("test_firebase_{}.json", uuid::Uuid::new_v4()));
+        {
+            let mut file = std::fs::File::create(&path)?;
+            writeln!(file, r#"{{
+                "user_abc": {{ "name": "Charlie", "email": "charlie@firebase.com", "created_at": {{ "_seconds": 1728000000, "_nanoseconds": 0 }} }},
+                "user_xyz": {{ "name": "Dana", "email": "dana@firebase.com", "created_at": {{ "_seconds": 1728000100, "_nanoseconds": 0 }} }}
+            }}"#)?;
+            file.flush()?;
+        }
+
+        let mut source = JsonSource::new(&path)?;
+        let batch = source.next_batch(10)?;
+        assert_eq!(batch.len(), 2);
+        
+        let charlie = batch.iter().find(|r| r.get("id").and_then(|v| v.as_str()) == Some("user_abc")).unwrap();
+        assert_eq!(charlie.get("name").unwrap().as_str().unwrap(), "Charlie");
+        assert_eq!(charlie.get("created_at").unwrap().as_i64().unwrap(), 1728000000);
+
+        let _ = std::fs::remove_file(path);
+        Ok(())
+    }
 }

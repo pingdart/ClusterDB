@@ -3,6 +3,16 @@ pub mod metadata;
 pub mod node;
 pub mod raft;
 pub mod sharding;
+pub mod two_phase_commit;
+pub mod replication;
+pub mod distributed_query;
+
+#[allow(unused_imports)]
+pub use two_phase_commit::{TwoPhaseCommitCoordinator, TwoPhaseTxnState, ShardMutation};
+#[allow(unused_imports)]
+pub use replication::{NodeReplicationRole, ReplicationManager, ReplicationPacket};
+#[allow(unused_imports)]
+pub use distributed_query::{DistributedQueryCoordinator, GlobalAggregateResult, PartialAggregate};
 
 use crate::cluster::distributed_search::DistributedSearchCoordinator;
 use crate::cluster::metadata::{ClusterMetadataService, ClusterSummary};
@@ -53,8 +63,7 @@ impl ClusterEngine {
         // 1. Raft Heartbeat & Election Loop
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(Duration::from_millis(50));
-            let mut last_election_check = std::time::Instant::now();
-            let mut election_timeout = Duration::from_millis(300);
+            let mut election_timeout = Duration::from_millis(450);
 
             loop {
                 ticker.tick().await;
@@ -63,13 +72,13 @@ impl ClusterEngine {
                 if role == NodeRole::Leader {
                     cluster.raft.send_heartbeats().await;
                 } else {
-                    // Check if election timeout elapsed
-                    if last_election_check.elapsed() >= election_timeout {
+                    // Check if election timeout elapsed since last heartbeat was received from leader
+                    if cluster.raft.time_since_last_heartbeat().await >= election_timeout {
                         cluster.raft.start_election().await;
-                        last_election_check = std::time::Instant::now();
-                        // Randomize next timeout between 200ms and 400ms
+                        cluster.raft.reset_heartbeat_time().await;
+                        // Randomize next timeout between 400ms and 800ms
                         let mut rng = rand::thread_rng();
-                        election_timeout = Duration::from_millis(rand::Rng::gen_range(&mut rng, 200..400));
+                        election_timeout = Duration::from_millis(rand::Rng::gen_range(&mut rng, 400..800));
                     }
                 }
 
@@ -89,6 +98,9 @@ impl ClusterEngine {
                             }
                         }
                         ClusterCommand::RegisterNode { node } => {
+                            if node.id != cluster.raft.node_id {
+                                cluster.raft.add_peer(node.id.clone(), node.address.clone()).await;
+                            }
                             cluster.metadata.register_node(node).await;
                         }
                         ClusterCommand::UpdateShardMap { shard_id: _, node_id } => {

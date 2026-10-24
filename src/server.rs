@@ -282,6 +282,20 @@ pub async fn start_server(
     // Start background Raft & cluster tasks
     cluster.start_background_tasks();
 
+    // Start PostgreSQL Wire Protocol (v3) Server
+    let pg_port = std::env::var("PINGDART_PG_PORT")
+        .ok()
+        .and_then(|p| p.parse::<u16>().ok())
+        .unwrap_or(5432);
+    let pg_addr = format!("0.0.0.0:{}", pg_port);
+    let pg_server = crate::pgwire::PgWireServer::new(executor.clone(), pg_addr.clone());
+    if let Err(e) = pg_server.run().await {
+        tracing::warn!("Could not start PostgreSQL Wire Protocol on {}: {}. Trying fallback port {}.", pg_addr, e, port + 100);
+        let fallback_addr = format!("0.0.0.0:{}", port + 100);
+        let fallback_pg = crate::pgwire::PgWireServer::new(executor.clone(), fallback_addr);
+        let _ = fallback_pg.run().await;
+    }
+
     // If join seed provided, trigger async cluster join
     if let Some(seed) = join_seed {
         let cluster_clone = cluster.clone();
@@ -1236,6 +1250,7 @@ pub async fn handle_cluster_join(
     info!("Received join request from node {} at {}", node.id, node.address);
     state.cluster.metadata.register_node(node.clone()).await;
     state.cluster.raft.add_peer(node.id.clone(), node.address.clone()).await;
+    let _ = state.cluster.raft.propose(crate::cluster::raft::ClusterCommand::RegisterNode { node: node.clone() }).await;
     let all_nodes = state.cluster.metadata.get_all_nodes().await;
     let leader_id = state.cluster.raft.get_leader_id().await;
     (StatusCode::OK, Json(serde_json::json!({

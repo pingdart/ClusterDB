@@ -19,3 +19,6 @@ pub mod backup;
 pub mod observability;
 pub mod security;
 pub mod migration;
+pub mod wal;
+pub mod mvcc;
+pub mod pgwire;

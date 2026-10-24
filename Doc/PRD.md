@@ -123,37 +123,28 @@ PingDartDB/
 * Multi-Tenant Databases & RBAC
 * Backup & Restore
 
-## Release Plan
+## Release Plan & Strategic Roadmap
 
-### Version 1.0 (Current & Immediate Scope)
+### 🚀 Version 1.0 (Core Engine & PostgreSQL Parity Foundation)
+* **Write Ahead Log (WAL)**: Sequential log with monotonic LSN, group commit with micro-batched `fsync`, and ARIES crash recovery (Analysis, Redo, Undo).
+* **Multi-Version Concurrency Control (MVCC)**: Non-blocking reads/writes with tuple version headers (`xmin`, `xmax`, `cid`) and Snapshot Isolation (SI) Read Views.
+* **Custom Page Storage Engine**: Buffer pool manager with fixed 8KB slotted pages, frame table, pin/unpin counts, and Clock/2Q page replacement.
+* **PostgreSQL Wire Protocol (`pgwire v3`)**: Native TCP server for direct connections from `psql`, DBeaver, DataGrip, Metabase, and standard PostgreSQL drivers.
+* **Advanced Join Engine**: In-memory Grace Hash Join and Sort-Merge Join algorithms replacing slow nested loop scans.
 
-* V1 Storage Engine (sled)
-* Basic CRUD Operations (SQL + Document)
-* Initial Document API (`POST /document/query`)
-* Native Query API & SQL Compatibility (Core)
-* Built-in Versioning Metadata fields (`_createdAt`, `_version`, etc.)
-* Automatic Primary Indexes
-* REST API
-* Node.js SDK, Rust SDK, CLI
+### 🏢 Version 2.0 (Distributed Scale & Enterprise Resilience)
+* **Distributed Two-Phase Commit (2PC)**: Cross-shard atomic transactions coordinating prepare, commit, and abort across Raft consensus groups.
+* **Declarative Table Partitioning**: `PARTITION BY RANGE` and `PARTITION BY HASH` with CBO compile-time partition pruning.
+* **Materialized Views**: Pre-aggregated query caches with incremental and transactional refresh mechanics.
+* **External Streaming Connectors**: Native CDC connectors streaming write events directly to Apache Kafka, NATS, and Redis Streams.
+* **Parallel Query Engine**: Multi-threaded execution pipelines for high-throughput OLAP scans.
 
-### Version 2.0 (The Scale Release)
-
-* V2 Storage Engine (Custom Page Manager)
-* Transactions
-* Real-time Subscriptions & Change Streams
-* GraphQL API
-* gRPC Implementation
-* Replication & Clustering
-* Web Studio & Monitoring
-* Backup & Restore
-
-### Version 3.0 (The AI & Enterprise Release)
-
-* Vector Database & AI Indexes
-* Semantic Queries & RAG Storage
-* Graph Queries
-* Distributed Cluster & Enterprise Features
-* Cloud Management Console
+### 🌐 Version 3.0 (Cloud-Native AI Hyper-Database)
+* **Autonomous Agent Memory Runtime**: `CREATE AGENT`, `STORE MEMORY`, `RECALL MEMORY` with decay and consolidation.
+* **Native In-SQL AI Functions**: `SELECT AI_COMPLETE(...)`, `SELECT AI_EMBED(...)`, and `SELECT AI_RERANK(...)`.
+* **Time Travel Queries**: `SELECT * FROM table AS OF TIMESTAMP '...'` using MVCC history undo chains.
+* **Billion-Scale Vector Quantization**: Scalar Quantization (SQ8), Product Quantization (PQ), and DiskANN disk-backed graphs.
+* **Serverless Scale-to-Zero**: Automatic memory suspension and sub-second cold wakeups.
 
 ### Detailed Feature Requirements
 

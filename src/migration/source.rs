@@ -150,13 +150,50 @@ impl JsonSource {
         if trimmed.starts_with('[') {
             // Whole file is a JSON array
             let full_text = std::fs::read_to_string(&p)?;
-            let array: Vec<HashMap<String, serde_json::Value>> = serde_json::from_str(&full_text)?;
+            let raw_array: Vec<HashMap<String, serde_json::Value>> = serde_json::from_str(&full_text)?;
+            let array = raw_array.into_iter().map(Self::normalize_json_record).collect();
             Ok(Self {
                 file_path: p,
                 reader,
                 current_byte_offset: full_text.len() as u64,
                 is_jsonl: false,
                 array_records: Some(array),
+                array_index: 0,
+            })
+        } else if trimmed.starts_with('{') {
+            let full_text = std::fs::read_to_string(&p)?;
+            if let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(&full_text) {
+                // If it's a map where values are objects (Firebase Realtime DB collection export: {"id1": {...}, "id2": {...}})
+                let is_collection_map = !map.is_empty() && map.values().all(|v| v.is_object());
+                if is_collection_map {
+                    let mut array = Vec::new();
+                    for (k, v) in map {
+                        if let serde_json::Value::Object(mut inner_map) = v {
+                            if !inner_map.contains_key("id") && !inner_map.contains_key("_id") {
+                                inner_map.insert("id".to_string(), serde_json::Value::String(k));
+                            }
+                            let record: HashMap<String, serde_json::Value> = inner_map.into_iter().collect();
+                            array.push(Self::normalize_json_record(record));
+                        }
+                    }
+                    return Ok(Self {
+                        file_path: p,
+                        reader,
+                        current_byte_offset: full_text.len() as u64,
+                        is_jsonl: false,
+                        array_records: Some(array),
+                        array_index: 0,
+                    });
+                }
+            }
+            // Otherwise, treat as JSONL (newline-delimited JSON)
+            let file = File::open(&p)?;
+            Ok(Self {
+                file_path: p,
+                reader: BufReader::new(file),
+                current_byte_offset: 0,
+                is_jsonl: true,
+                array_records: None,
                 array_index: 0,
             })
         } else {
@@ -171,6 +208,36 @@ impl JsonSource {
                 array_index: 0,
             })
         }
+    }
+
+    pub fn normalize_json_record(raw: HashMap<String, serde_json::Value>) -> HashMap<String, serde_json::Value> {
+        let mut out = HashMap::new();
+        for (k, v) in raw {
+            let norm_k = if k == "_id" { "id".to_string() } else { k };
+            let norm_v = match v {
+                serde_json::Value::Object(ref map) => {
+                    // Normalize MongoDB Extended JSON: $oid, $date, $numberLong, $numberInt
+                    if let Some(oid) = map.get("$oid") {
+                        oid.clone()
+                    } else if let Some(date) = map.get("$date") {
+                        date.clone()
+                    } else if let Some(long) = map.get("$numberLong") {
+                        long.clone()
+                    } else if let Some(int) = map.get("$numberInt") {
+                        int.clone()
+                    }
+                    // Normalize Firebase / Firestore Timestamps: {_seconds: 1234567890, _nanoseconds: 0}
+                    else if let Some(sec) = map.get("_seconds") {
+                        sec.clone()
+                    } else {
+                        serde_json::Value::String(v.to_string())
+                    }
+                }
+                _ => v,
+            };
+            out.insert(norm_k, norm_v);
+        }
+        out
     }
 }
 
@@ -203,7 +270,7 @@ impl MigrationSource for JsonSource {
             }
 
             if let Ok(obj) = serde_json::from_str::<HashMap<String, serde_json::Value>>(trimmed) {
-                batch.push(obj);
+                batch.push(Self::normalize_json_record(obj));
             }
         }
 
@@ -345,7 +412,18 @@ impl MigrationSource for PostgresDumpSource {
             // Parse INSERT INTO table (col1, col2) VALUES (val1, val2);
             let lower = trimmed.to_lowercase();
             if lower.starts_with("insert into ") {
-                if let Some(records) = parse_sql_insert_statement(trimmed) {
+                let mut statement = trimmed.to_string();
+                while !statement.trim_end().ends_with(';') {
+                    line.clear();
+                    let b = self.reader.read_line(&mut line)?;
+                    if b == 0 {
+                        break;
+                    }
+                    self.current_byte_offset += b as u64;
+                    statement.push(' ');
+                    statement.push_str(line.trim());
+                }
+                if let Some(records) = parse_sql_insert_statement(&statement) {
                     batch.extend(records);
                 }
             }
@@ -417,7 +495,18 @@ impl MigrationSource for MySQLDumpSource {
 
             let lower = trimmed.to_lowercase();
             if lower.starts_with("insert into ") {
-                if let Some(records) = parse_sql_insert_statement(trimmed) {
+                let mut statement = trimmed.to_string();
+                while !statement.trim_end().ends_with(';') {
+                    line.clear();
+                    let b = self.reader.read_line(&mut line)?;
+                    if b == 0 {
+                        break;
+                    }
+                    self.current_byte_offset += b as u64;
+                    statement.push(' ');
+                    statement.push_str(line.trim());
+                }
+                if let Some(records) = parse_sql_insert_statement(&statement) {
                     batch.extend(records);
                 }
             }

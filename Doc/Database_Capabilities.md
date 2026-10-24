@@ -748,24 +748,131 @@ To advance from multi-model feature completeness to large-scale enterprise produ
    - Zone Maps & Min-Max Chunk Pruning on `ColumnChunk` achieving **9.5x to 9.9x query speedup** by skipping >81% to 84% of chunks on selective predicates.
    - Vectorized columnar aggregations over 1M records in **1.28s** (COUNT, SUM, AVG, MIN, MAX) and **0.84s** for GROUP BY.
    - Native CLI scale harness (`pingdart-benchmark --scale <tier>`) with structured JSON and Markdown telemetry output.
-8. **Chaos Engineering & Jepsen Validation** (Phase 12A):
-   - Network partition split-brain resilience, abrupt kill-9 recovery, and linearizability certification.
-9. **Distributed Transactions (2PC)** (Phase 12B):
-   - Two-Phase Commit coordinator, shard WAL prepare/commit, and atomic cross-shard transaction commits.
-10. **PostgreSQL Wire Protocol Compatibility (pgwire v3)** (Phase 13D):
-   - Native TCP server implementing PostgreSQL v3 frontend/backend message protocol.
-   - Immediate zero-code integration with standard drivers (Python `psycopg2`/`asyncpg`, Node `pg`, Java `JDBC`, Go `pgx`) and BI/analytics tools (DBeaver, DataGrip, Metabase, Superset).
-11. **Official Client SDKs & Ecosystem Integration**:
-   - First-class client libraries (`pingdart-py`, `pingdart-node`, `pingdart-go`) and ORM adapters.
-12. **Kubernetes Operator & Cloud-Native Topology**:
-   - Production Helm charts, Kubernetes Operator CRDs, automated pod failover, persistent volume scaling, and auto-backup schedules.
-13. **Billion-Scale Vector Engine Architecture** (Phase 14):
-   - Scalar Quantization (SQ8) and Product Quantization (PQ) reducing vector memory by up to 32x.
-   - Compact `u32` internal graph node edges replacing heap strings.
-   - DiskANN-style disk-spilled base graph (Layer 0 on NVMe SSD, routing layers in RAM).
+8. **Strategic Enterprise Architecture & Roadmap (Postgres/CockroachDB Competitor Path)**:
 
+### 🎯 Strategic Prioritization Framework
 
+#### Priority 1 (Must Have — Core Storage & Concurrency Primitives)
+1. **Write Ahead Log (WAL) & Crash Durability**:
+   - Sequential append-only log with monotonic Log Sequence Numbers (LSN).
+   - Group commit pipeline with micro-batched `fsync` barriers.
+   - ARIES-style crash recovery: Analysis pass, Redo pass (repeating history), Undo pass (rolling back uncommitted transactions).
+   - Solid foundation for crash recovery, replication safety, and Point-In-Time Recovery (PITR).
+2. **Multi-Version Concurrency Control (MVCC) & Snapshot Isolation**:
+   - Elimination of coarse table-level read/write locks.
+   - Tuple version headers with `xmin` (creator transaction ID), `xmax` (deleter/updater transaction ID), and `cid` (command sequence ID).
+   - Snapshot Read Views allowing concurrent non-blocking reads and isolated writes.
+   - Serializable / Snapshot Isolation concurrency guarantees.
+3. **Custom Page-Based Storage Engine**:
+   - Direct buffer pool management with fixed 8KB/16KB slotted pages, slot directories, and pin/unpin semantics.
+   - Page eviction algorithms (Clock / 2Q / LRU-K) with dirty page flusher and disk manager replacing embedded KV dependencies.
+4. **PostgreSQL Wire Protocol Compatibility (`pgwire v3`)**:
+   - Native TCP server implementing the PostgreSQL frontend/backend protocol state machine.
+   - Direct connection compatibility with `psql`, DBeaver, DataGrip, Metabase, Apache Superset, Tableau, PowerBI, and standard language drivers (`psycopg2`, `asyncpg`, `pg`, `pgx`, `JDBC`).
+5. **Advanced Join Execution Engine (Hash Join & Merge Join)**:
+   - High-performance in-memory Grace Hash Join for equi-joins.
+   - Sort-Merge Join for pre-sorted inputs.
+   - Eliminating the $O(N \times M)$ nested loop join limitation for large tables.
 
+#### Priority 2 (Enterprise Distributed Scale)
+6. **Distributed Two-Phase Commit (2PC)**:
+   - Multi-shard atomic transactions coordinating prepare, commit, and abort phases across virtual shard Raft groups.
+7. **Table Partitioning (`PARTITION BY RANGE / HASH / LIST`)**:
+   - Declarative partitioning with CBO compile-time partition pruning for billion-row datasets.
+8. **Materialized Views & Incremental Maintenance**:
+   - Pre-computed analytical views with background and transaction-driven incremental refresh (`CREATE MATERIALIZED VIEW`).
+9. **Parallel & Vectorized SIMD Query Engine**:
+   - Intra-query multi-core parallelism for analytical table scans and columnar filter evaluations.
 
+#### Priority 3 (AI Leadership & Agent Runtime)
+10. **Native In-SQL AI & Inference Functions**:
+    - `SELECT AI_COMPLETE('prompt')`, `SELECT AI_EMBED('text')`, `SELECT AI_RERANK(...)`.
+11. **Agent Memory Runtime**:
+    - Native DDL and DML for autonomous agent state: `CREATE AGENT`, `STORE MEMORY`, `RECALL MEMORY`.
+12. **Real-Time CDC Connectors**:
+    - Enterprise streaming connectors pushing WAL/CDC change events to Apache Kafka, NATS, and Redis Streams.
 
+#### Priority 4 (High Scale & OLAP Compression)
+13. **Advanced Columnar Compression**:
+    - Dictionary encoding, Run-Length Encoding (RLE), Delta encoding, and Bit Packing for memory-efficient OLAP storage.
+14. **Vector Quantization & DiskANN**:
+    - Product Quantization (PQ), Scalar Quantization (SQ8), and DiskANN graph tiering for billion-scale vector indexes.
+15. **GPU-Accelerated Vector Similarity**:
+    - Hardware acceleration via Metal (macOS) and CUDA/ROCm for ultra-high throughput vector search.
+
+#### Priority 5 (Cloud-Native Data Platform)
+16. **Database Branching (Copy-on-Write)**:
+    - Instant zero-copy database branching (`CREATE BRANCH dev FROM prod`).
+17. **Time Travel Queries**:
+    - `SELECT * FROM table AS OF TIMESTAMP '2026-09-27 10:00:00'` powered by MVCC version chains.
+18. **Serverless Auto-Suspend**:
+    - Scale-to-zero memory suspension with instant sub-second reactivation upon incoming TCP traffic.
+
+---
+
+## 2. Release Milestones
+
+### 🚀 Version 1.0 (The True Engine Foundation)
+* Write Ahead Log (WAL) with group commit, fsync, and ARIES recovery.
+* Multi-Version Concurrency Control (MVCC) with Snapshot Isolation.
+* Custom Page Manager & Slotted Page Storage Engine.
+* PostgreSQL Wire Protocol (`pgwire v3`) support.
+* In-Memory Hash Join & Sort-Merge Join execution algorithms.
+
+### 🏢 Version 2.0 (Enterprise Distributed Scale)
+* Distributed Two-Phase Commit (2PC) across Raft shards.
+* Declarative Table Partitioning (`RANGE` & `HASH`).
+* Materialized Views with incremental refreshes.
+* Apache Kafka & NATS CDC streaming connectors.
+* Parallel Query Execution Engine.
+
+### 🌐 Version 3.0 (Cloud-Native AI Hyper-Database)
+* Autonomous Agent Memory Runtime (`CREATE AGENT`, `STORE/RECALL MEMORY`).
+* Native In-SQL LLM Functions (`AI_COMPLETE`, `AI_EMBED`, `AI_RERANK`, `AI_EXTRACT`).
+* Time Travel Queries (`AS OF TIMESTAMP`) & Database Branching.
+* Vector Quantization (PQ / SQ8 / DiskANN) & GPU Search.
+* Serverless Scale-to-Zero Auto-Suspend.
+
+---
+
+## 3. Subsystem Architecture Updates (Production Engine Status)
+
+### A. Cost-Based Optimizer (CBO) & Statistics Engine
+PingDart's Cost-Based Optimizer determines optimal physical execution plans using statistical profiles and hardware-calibrated cost models:
+- **Statistical Metrology**: Equi-depth histograms (`HistogramBucket`), HyperLogLog (NDV estimation), null ratios, and min/max boundaries.
+- **SQL Profiling**: `ANALYZE <table>;` and global `ANALYZE;` perform reservoir sampling and persist detailed metrics to `_system_table_stats`.
+- **Physical Plan Enumerator**:
+  - Access paths: `SequentialScan`, `IndexScan` (B+Tree), `IndexOnlyScan`, `PartitionPrunedScan` (Range/Hash), `MaterializedViewScan`.
+  - Join algorithms: `HashJoin` (O(N+M)), `SortMergeJoin`, `NestedLoopJoin`, `DistributedBroadcastJoin`.
+  - Multi-threaded intra-query parallelism evaluator with worker spawn overhead costing.
+
+### B. Enterprise Replication Layer (Primary + N Read Replicas)
+Built for enterprise zero-data-loss deployments:
+- **Streaming WAL Replication**: Primary streams binary WAL batches directly to read replicas.
+- **Hot-Standby Read Replicas**: Replicas enforce read-only semantics (`ensure_writable`), serving low-latency read queries from local state.
+- **Snapshot Transfer**: Out-of-band state replication transferring database snapshots for newly joined nodes or replicas past WAL retention horizons.
+- **Replica Catch-up**: Automatic delta replay bringing lagging standbys up to the primary head LSN.
+- **Automatic Failover**: Cluster-wide consensus promoting the standby with highest `applied_lsn` to Primary upon node failure.
+- **Replication Observability**: Inspected via `SHOW REPLICATION STATUS;`.
+
+### C. Distributed Multi-Node Query Execution Engine
+Cross-node distributed execution matching CockroachDB and SingleStore architectures:
+- **Distributed Scan**: Scatters table scans with pushdown predicates across Node 1, Node 2, Node 3, and Node 4 in parallel.
+- **Distributed Broadcast Join**: Broadcasts small dimension tables across all partition nodes for zero-shuffle joins.
+- **Distributed Shuffled Hash Join**: Re-partitions large tables across cluster nodes by join key hash, executing local joins in parallel.
+- **Distributed Aggregations**: Map-Reduce aggregation pipeline where nodes compute partial aggregates (`SUM`, `COUNT`, `MIN`, `MAX`, `AVG`) and the coordinator performs global reduction.
+- **Distributed K-Way Merge Sort**: Merges pre-sorted node streams preserving order with `LIMIT` and `OFFSET` pushdown.
+
+### D. AI-Native SQL Functions & Autonomous Agent Runtime
+PingDart's AI-first database layer differentiates it from standard relational engines:
+- **In-SQL Inference**:
+  - `SELECT AI_EMBED(content)`: Generates dense vector embeddings directly inside SQL queries.
+  - `SELECT AI_COMPLETE(prompt)`: Native LLM completion synthesis.
+  - `SELECT AI_RERANK(query, docs)`: Cross-encoder ranking and relevance scoring.
+  - `SELECT AI_EXTRACT(field, text)`: Structured attribute extraction from unstructured text.
+- **Autonomous Agent Memory DDL & Runtime**:
+  - `CREATE AGENT <name> MODEL='...' INSTRUCTIONS='...';`
+  - `STORE AGENT MEMORY <agent> KEY='...' CONTENT='...';`
+  - `RECALL AGENT MEMORY <agent>;`
+  - `SHOW AGENTS;`
 

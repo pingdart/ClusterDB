@@ -7,7 +7,10 @@ Discovered on: 2026-09-12 07:38:38
 """
 
 import requests
-import pytest
+try:
+    import pytest
+except ImportError:
+    pass
 
 BASE_URL = "http://127.0.0.1:4650"
 

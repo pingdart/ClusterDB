@@ -275,10 +275,11 @@ impl MigrationManager {
 
         let mut source: Box<dyn MigrationSource> = match source_type.to_lowercase().as_str() {
             "csv" => Box::new(CsvSource::new(&source_path, None)?),
-            "json" | "jsonl" => Box::new(JsonSource::new(&source_path)?),
+            "tsv" => Box::new(CsvSource::new(&source_path, Some('\t'))?),
+            "json" | "jsonl" | "firebase" | "firestore" => Box::new(JsonSource::new(&source_path)?),
             "mongo" | "mongodb" => Box::new(MongoJsonSource::new(&source_path)?),
             "postgres" | "postgresql" => Box::new(PostgresDumpSource::new(&source_path)?),
-            "mysql" => Box::new(MySQLDumpSource::new(&source_path)?),
+            "mysql" | "mariadb" | "sqlite" => Box::new(MySQLDumpSource::new(&source_path)?),
             other => return Err(anyhow!("Unsupported source format: {}", other)),
         };
 

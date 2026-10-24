@@ -1,0 +1,58 @@
+{
+  "-O7X9aBcDeF12345678": {
+    "name": "Dr. Sarah Jenkins",
+    "email": "sarah.jenkins@hospital.org",
+    "speciality": "Cardiology",
+    "department": "Cardiovascular Sciences",
+    "experience_years": 14,
+    "available": true,
+    "rating": 4.9,
+    "consultation_fee": 150.0,
+    "created_at": {
+      "_seconds": 1728000000,
+      "_nanoseconds": 0
+    }
+  },
+  "-O7X9aBcDeF12345679": {
+    "name": "Dr. Robert Chen",
+    "email": "robert.chen@hospital.org",
+    "speciality": "Neurology",
+    "department": "Neuroscience Center",
+    "experience_years": 11,
+    "available": true,
+    "rating": 4.8,
+    "consultation_fee": 180.0,
+    "created_at": {
+      "_seconds": 1728000100,
+      "_nanoseconds": 0
+    }
+  },
+  "-O7X9aBcDeF12345680": {
+    "name": "Dr. Emily Taylor",
+    "email": "emily.taylor@hospital.org",
+    "speciality": "Pediatrics",
+    "department": "Children's Health",
+    "experience_years": 8,
+    "available": false,
+    "rating": 4.95,
+    "consultation_fee": 120.0,
+    "created_at": {
+      "_seconds": 1728000200,
+      "_nanoseconds": 0
+    }
+  },
+  "-O7X9aBcDeF12345681": {
+    "name": "Dr. Michael Rao",
+    "email": "michael.rao@hospital.org",
+    "speciality": "Orthopedics",
+    "department": "Joint & Spine Clinic",
+    "experience_years": 19,
+    "available": true,
+    "rating": 4.75,
+    "consultation_fee": 200.0,
+    "created_at": {
+      "_seconds": 1728000300,
+      "_nanoseconds": 0
+    }
+  }
+}

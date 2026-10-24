@@ -170,6 +170,14 @@ impl RaftEngine {
         self.commit_index.load(Ordering::SeqCst)
     }
 
+    pub async fn time_since_last_heartbeat(&self) -> Duration {
+        self.last_heartbeat_time.lock().await.elapsed()
+    }
+
+    pub async fn reset_heartbeat_time(&self) {
+        *self.last_heartbeat_time.lock().await = Instant::now();
+    }
+
     pub async fn get_last_log_index_and_term(&self) -> (u64, u64) {
         let log = self.log.read().await;
         if let Some(last) = log.last() {

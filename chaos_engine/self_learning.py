@@ -64,6 +64,8 @@ class SelfLearningEngine:
         filename = bug["test_file"]
         filepath = os.path.join(GENERATED_DIR, filename)
 
+        escaped_query = bug['query'].replace('"', '\\"')
+        func_name = bug['bug_id'].lower().replace('-', '_')
         code = f'''#!/usr/bin/env python3
 """
 Autonomous Regression Test: {bug['bug_id']}
@@ -77,7 +79,7 @@ import pytest
 
 BASE_URL = "http://127.0.0.1:4650"
 
-def test_{bug['bug_id'].lower().replace('-', '_')}():
+def test_{func_name}():
     session = requests.Session()
     # 1. Authenticate
     login_res = session.post(f"{{BASE_URL}}/login", json={{"username": "admin", "password": "admin123"}}, timeout=5)
@@ -85,7 +87,7 @@ def test_{bug['bug_id'].lower().replace('-', '_')}():
     token = login_res.json()["token"]
 
     # 2. Reproduction query
-    query = """{bug['query'].replace('"', '\\"')}"""
+    query = """{escaped_query}"""
     
     # 3. Execute
     res = session.post(f"{{BASE_URL}}/query", json={{"token": token, "query": query}}, timeout=10)
@@ -96,7 +98,7 @@ def test_{bug['bug_id'].lower().replace('-', '_')}():
     assert "status" in data, "Malformed server response without status"
 
 if __name__ == "__main__":
-    test_{bug['bug_id'].lower().replace('-', '_')}()
+    test_{func_name}()
     print("Regression test passed!")
 '''
         with open(filepath, "w", encoding="utf-8") as f:
