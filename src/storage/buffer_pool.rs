@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::storage::page::{PageId, SlottedPage, PAGE_SIZE};
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
