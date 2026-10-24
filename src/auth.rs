@@ -33,7 +33,7 @@ pub struct User {
 impl User {
     pub fn new_root(password: String) -> Self {
         Self {
-            username: "admin".to_string(),
+            username: "ravi80181".to_string(),
             password_hash: hash_password(&password), 
             token: None,
             allowed_ip: "%".to_string(),

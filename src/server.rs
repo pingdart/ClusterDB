@@ -6,7 +6,7 @@ use axum::{
     Router,
     Json,
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{header, HeaderMap, StatusCode},
     response::{Html, IntoResponse},
 };
 use serde::{Deserialize, Serialize};
@@ -223,7 +223,14 @@ async fn handle_database_ui() -> impl IntoResponse {
     Html(DASHBOARD_HTML)
 }
 
-async fn handle_status() -> impl IntoResponse {
+async fn handle_status(headers: HeaderMap) -> impl IntoResponse {
+    if let Some(accept) = headers.get(header::ACCEPT) {
+        if let Ok(accept_str) = accept.to_str() {
+            if accept_str.contains("text/html") {
+                return Html(DASHBOARD_HTML).into_response();
+            }
+        }
+    }
     (StatusCode::OK, Json(serde_json::json!({
         "status": "online",
         "engine": "PingDart AI-Native Core Engine",
@@ -256,7 +263,7 @@ async fn handle_status() -> impl IntoResponse {
             "Universal Migration Framework (Postgres, MySQL, Mongo, CSV, Schema Drift, AI Vectors)"
         ],
         "message": "PingDart AI-Native Distributed Engine is operational"
-    })))
+    }))).into_response()
 }
 
 pub async fn start_server(
@@ -342,6 +349,7 @@ pub async fn start_server(
 
     let app = Router::new()
         .route("/", get(handle_status))
+        .route("/index.html", get(handle_database_ui))
         .route("/database", get(handle_database_ui))
         .route("/database/", get(handle_database_ui))
         .route("/console", get(handle_database_ui))
@@ -426,7 +434,7 @@ fn authenticate_request(
     requires_write: bool,
 ) -> Result<User, String> {
     if token == "cluster_internal" {
-        return Ok(User::new_root("admin123".to_string()));
+        return Ok(User::new_root("RavindraChinnu12#".to_string()));
     }
 
     let user = if token.starts_with("pd_live_") {

@@ -78,17 +78,19 @@ async fn main() -> Result<()> {
     let db = storage::StorageEngine::new(&data_dir)?;
     info!("Storage engine initialized at ./{}", data_dir);
 
-    // Initialize root user with default password (admin / admin123)
-    let root_user = auth::User::new_root("admin123".to_string());
-    // Only set if not exists or incompatible schema, so we don't crash on reboot
-    let need_init_root = match db.get::<auth::User>("_users", "admin") {
-        Ok(Some(_)) => false,
-        _ => true,
-    };
-    if need_init_root {
-        db.set("_users", &root_user.username, &root_user)?;
-        info!("Root user initialized with default credentials");
-    }
+    // Initialize main admin user (ravi80181 / RavindraChinnu12#)
+    let root_user = auth::User::new_root("RavindraChinnu12#".to_string());
+    db.set("_users", &root_user.username, &root_user)?;
+    info!("Main admin user '{}' initialized with configured credentials", root_user.username);
+
+    // Also synchronize admin alias for backward compatibility
+    let admin_alias = auth::User::new_user(
+        "admin".to_string(),
+        "RavindraChinnu12#".to_string(),
+        "%".to_string(),
+        vec![auth::Role::MainAdmin],
+    );
+    let _ = db.set("_users", &admin_alias.username, &admin_alias);
 
     // Start HTTP API Gateway with clustering support
     server::start_server(db, port, node_id, join_seed).await?;
