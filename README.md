@@ -18,11 +18,42 @@ sudo ./install.sh
 The automated installer performs:
 1. Linux distribution and CPU architecture detection.
 2. System dependency and Rust toolchain verification.
-3. High-performance release compilation (`pingdart-core` and `pingdart`).
+3. High-performance release compilation (`pingdart-core`, `pingdart`, and `pingdart-vault`).
 4. Creation of dedicated `pingdart:pingdart` service account.
 5. FHS directory provisioning: `/etc/pingdartdb`, `/var/lib/pingdartdb/data`, `/var/log/pingdartdb`.
-6. Secure database administrator credential setup.
-7. Systemd service registration and post-install health verification.
+6. Interactive setup prompts for **Administrator Email**, **Root Username**, **Password**, and **4-8 digit Security PIN**.
+7. Creates machine-bound AES-256 encrypted vault (`/etc/pingdartdb/credentials.enc`, mode `0600`).
+8. Registers node telemetry via Node.js registration API (`/api/database/install-registration`). Passwords and PINs are **strictly never transmitted**.
+9. Systemd service registration and post-install health verification.
+
+### Non-Interactive / Headless Installation
+For CI/CD and automated setups, pass environment variables:
+```bash
+sudo PINGDART_ADMIN_EMAIL="admin@example.com" \
+     PINGDART_ADMIN_USER="admin" \
+     PINGDART_ADMIN_PASS="StrongSecret123!" \
+     PINGDART_ADMIN_PIN="80181" \
+     ./install.sh
+```
+
+---
+
+## 🔐 Encrypted Credential Vault (`pingdart-vault`)
+
+PingDartDB stores root credentials in an encrypted-at-rest vault bound to the server hardware (`/etc/pingdartdb/credentials.enc`). It uses AES-256-CBC with PBKDF2 (600,000 derivation rounds) keyed by combining the administrator's **Security PIN** with the server's unique `/etc/machine-id`. Even if the file is copied off-machine, it cannot be decrypted.
+
+Manage credentials securely via the native helper:
+
+```bash
+# View decrypted credentials in-memory (prompts for Security PIN)
+pingdart-vault view
+
+# Verify Security PIN validity against the encrypted vault
+pingdart-vault verify
+
+# Rotate administrator password or Security PIN
+pingdart-vault rotate
+```
 
 ---
 

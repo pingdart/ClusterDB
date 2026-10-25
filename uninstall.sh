@@ -65,9 +65,10 @@ fi
 
 # 3. Remove Binaries
 echo -e "${BLUE}[3/4] Removing installed binaries...${NC}"
-rm -f "${BIN_DIR}/pingdart-core" "${BIN_DIR}/pingdart" "${BIN_DIR}/pingdart-core.rollback" "${BIN_DIR}/pingdart.rollback"
+rm -f "${BIN_DIR}/pingdart-core" "${BIN_DIR}/pingdart" "${BIN_DIR}/pingdart-vault" "${BIN_DIR}/pingdart-core.rollback" "${BIN_DIR}/pingdart.rollback"
 echo "Removed: ${BIN_DIR}/pingdart-core"
 echo "Removed: ${BIN_DIR}/pingdart"
+echo "Removed: ${BIN_DIR}/pingdart-vault"
 
 # 4. Handle Data & Configuration Preservation
 echo -e "${BLUE}[4/4] Evaluating data retention...${NC}"

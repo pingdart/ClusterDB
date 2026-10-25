@@ -120,6 +120,12 @@ install -m 0755 "${SCRIPT_DIR}/target/release/pingdart" "${BIN_DIR}/pingdart"
 echo "Installed: ${BIN_DIR}/pingdart-core"
 echo "Installed: ${BIN_DIR}/pingdart"
 
+# Install vault helper CLI if present
+if [ -f "${SCRIPT_DIR}/scripts/pingdart-vault.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/scripts/pingdart-vault.sh" "${BIN_DIR}/pingdart-vault"
+    echo "Installed: ${BIN_DIR}/pingdart-vault"
+fi
+
 # ------------------------------------------------------------------------------
 # [4/7] Dedicated Service Account & FHS Directory Creation
 # ------------------------------------------------------------------------------
@@ -170,19 +176,36 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# [5/7] Initial Administrator Account Setup
+# [5/7] Administrator Account & Encrypted Vault Setup
 # ------------------------------------------------------------------------------
-echo -e "${BLUE}[5/7] Configuring initial database administrator...${NC}"
-ADMIN_USER="${PINGDART_ADMIN_USER:-ravi80181}"
-ADMIN_PASS="${PINGDART_ADMIN_PASS:-RavindraChinnu12#}"
+echo -e "${BLUE}[5/7] Configuring database administrator and encrypted vault...${NC}"
 
-if [ -t 0 ] && [ -z "${PINGDART_ADMIN_USER:-}" ]; then
-    read -rp "Enter Database Administrator Username [default: ravi80181]: " USER_IN
+ADMIN_EMAIL="${PINGDART_ADMIN_EMAIL:-admin@pingdart.com}"
+ADMIN_USER="${PINGDART_ADMIN_USER:-admin}"
+ADMIN_PASS="${PINGDART_ADMIN_PASS:-admin123}"
+ADMIN_PIN="${PINGDART_ADMIN_PIN:-80181}"
+
+if [ -t 0 ] && [ -z "${PINGDART_ADMIN_EMAIL:-}" ]; then
+    # 1. Administrator Email Prompt with Validation
+    while true; do
+        read -rp "Enter Administrator Email [default: admin@pingdart.com]: " EMAIL_IN
+        EMAIL_IN="${EMAIL_IN:-admin@pingdart.com}"
+        if [[ "${EMAIL_IN}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+            ADMIN_EMAIL="${EMAIL_IN}"
+            break
+        else
+            echo -e "${RED}[ERROR] Invalid email format. Please enter a valid email address.${NC}"
+        fi
+    done
+
+    # 2. Administrator Root Username Prompt
+    read -rp "Enter Database Root Username [default: admin]: " USER_IN
     if [ -n "${USER_IN}" ]; then
         ADMIN_USER="${USER_IN}"
     fi
 
-    echo -n "Enter Administrator Password [leave blank for default]: "
+    # 3. Masked Administrator Password Prompt
+    echo -n "Enter Root Administrator Password [leave blank for default]: "
     stty -echo 2>/dev/null || true
     read -r PASS_IN
     stty echo 2>/dev/null || true
@@ -190,9 +213,30 @@ if [ -t 0 ] && [ -z "${PINGDART_ADMIN_USER:-}" ]; then
     if [ -n "${PASS_IN}" ]; then
         ADMIN_PASS="${PASS_IN}"
     fi
+
+    # 4. Masked Security PIN Prompt (4-8 digits)
+    while true; do
+        echo -n "Enter Security PIN (4-8 digits) [default: 80181]: "
+        stty -echo 2>/dev/null || true
+        read -r PIN_IN
+        stty echo 2>/dev/null || true
+        echo ""
+        PIN_IN="${PIN_IN:-80181}"
+        if [[ "${PIN_IN}" =~ ^[0-9]{4,8}$ ]]; then
+            ADMIN_PIN="${PIN_IN}"
+            break
+        else
+            echo -e "${RED}[ERROR] Security PIN must be 4 to 8 numeric digits.${NC}"
+        fi
+    done
 fi
 
-# Pass admin credentials directly to create-admin script without logging password
+# Create Encrypted Vault at /etc/pingdartdb/credentials.enc (AES-256-CBC with machine-bound key)
+if [ -f "${SCRIPT_DIR}/scripts/pingdart-vault.sh" ]; then
+    "${SCRIPT_DIR}/scripts/pingdart-vault.sh" create "${ADMIN_EMAIL}" "${ADMIN_USER}" "${ADMIN_PASS}" "${ADMIN_PIN}" "${CONFIG_DIR}/credentials.enc" >/dev/null 2>&1 || true
+fi
+
+# Pass admin credentials to internal database user provisioner
 if [ -f "${SCRIPT_DIR}/scripts/create-admin.sh" ]; then
     chmod +x "${SCRIPT_DIR}/scripts/create-admin.sh"
     PINGDART_ADMIN_USER="${ADMIN_USER}" PINGDART_ADMIN_PASS="${ADMIN_PASS}" \
@@ -200,9 +244,9 @@ if [ -f "${SCRIPT_DIR}/scripts/create-admin.sh" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# [6/7] Systemd Service & Logrotate Registration
+# [6/7] Systemd Service, Logrotate & Telemetry Registration
 # ------------------------------------------------------------------------------
-echo -e "${BLUE}[6/7] Registering systemd service and logrotate...${NC}"
+echo -e "${BLUE}[6/7] Registering systemd service and logging...${NC}"
 
 if [ -f "${SCRIPT_DIR}/packaging/pingdartdb.service" ]; then
     cp "${SCRIPT_DIR}/packaging/pingdartdb.service" "${SERVICE_FILE}"
@@ -217,6 +261,68 @@ fi
 systemctl daemon-reload
 systemctl enable pingdartdb.service
 systemctl restart pingdartdb.service
+
+# ── Installation Telemetry Harvester & Remote Registration ──────────────────
+# Gathers system identity safely. Passwords and PINs are STRICTLY NEVER SENT.
+INSTALLATION_ID_FILE="${CONFIG_DIR}/.installation_id"
+if [ -f "${INSTALLATION_ID_FILE}" ]; then
+    INSTALLATION_ID=$(cat "${INSTALLATION_ID_FILE}")
+else
+    if command -v uuidgen >/dev/null 2>&1; then
+        INSTALLATION_ID=$(uuidgen)
+    elif [ -f /proc/sys/kernel/random/uuid ]; then
+        INSTALLATION_ID=$(cat /proc/sys/kernel/random/uuid)
+    else
+        INSTALLATION_ID="inst_$(date +%s)_$(openssl rand -hex 6 2>/dev/null || echo '001')"
+    fi
+    echo "${INSTALLATION_ID}" > "${INSTALLATION_ID_FILE}"
+    chmod 0644 "${INSTALLATION_ID_FILE}"
+fi
+
+HOSTNAME_VAL=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
+KERNEL_VAL=$(uname -r 2>/dev/null || echo "unknown")
+
+HARDWARE_UUID=""
+if [ -f /etc/machine-id ] && [ -s /etc/machine-id ]; then
+    HARDWARE_UUID=$(tr -d ' \n\r' < /etc/machine-id)
+elif [ -f /var/lib/dbus/machine-id ] && [ -s /var/lib/dbus/machine-id ]; then
+    HARDWARE_UUID=$(tr -d ' \n\r' < /var/lib/dbus/machine-id)
+elif [ -f /sys/class/dmi/id/product_uuid ] && [ -s /sys/class/dmi/id/product_uuid ]; then
+    HARDWARE_UUID=$(tr -d ' \n\r' < /sys/class/dmi/id/product_uuid)
+fi
+
+MAC_VAL=""
+PRIMARY_IFACE=$(ip route show default 2>/dev/null | awk '/default/ {print $5}' | head -n1 || echo "")
+if [ -n "${PRIMARY_IFACE}" ] && [ -f "/sys/class/net/${PRIMARY_IFACE}/address" ]; then
+    MAC_VAL=$(cat "/sys/class/net/${PRIMARY_IFACE}/address" 2>/dev/null || echo "")
+fi
+if [ -z "${MAC_VAL}" ]; then
+    MAC_VAL=$(cat /sys/class/net/*/address 2>/dev/null | grep -v '00:00:00:00:00:00' | head -n1 || echo "")
+fi
+
+# Safe IP extraction with 2-second timeout (graceful offline fallback)
+SERVER_IPV4=""
+if command -v curl >/dev/null 2>&1; then
+    SERVER_IPV4=$(curl -s4 --max-time 2 https://api.ipify.org 2>/dev/null || echo "")
+fi
+if [ -z "${SERVER_IPV4}" ]; then
+    SERVER_IPV4=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
+fi
+
+SERVER_IPV6=""
+if command -v curl >/dev/null 2>&1; then
+    SERVER_IPV6=$(curl -s6 --max-time 2 https://api6.ipify.org 2>/dev/null || echo "")
+fi
+
+# Send non-blocking registration telemetry to API
+REG_URL="${PINGDART_REGISTRATION_URL:-https://chat.pingdart.com/api/database/install-registration}"
+PAYLOAD=$(printf '{"installation_id":"%s","email":"%s","root_username":"%s","server_ipv4":"%s","server_ipv6":"%s","mac_address":"%s","hardware_uuid":"%s","hostname":"%s","os_distro":"%s","os_release":"%s","kernel":"%s","architecture":"%s","db_version":"0.5.0-rc1"}' \
+    "${INSTALLATION_ID}" "${ADMIN_EMAIL}" "${ADMIN_USER}" "${SERVER_IPV4}" "${SERVER_IPV6}" "${MAC_VAL}" "${HARDWARE_UUID}" "${HOSTNAME_VAL}" "${DISTRO}" "${VERSION_ID:-unknown}" "${KERNEL_VAL}" "${ARCH}")
+
+curl -s -X POST "${REG_URL}" \
+    -H "Content-Type: application/json" \
+    --max-time 5 \
+    -d "${PAYLOAD}" >/dev/null 2>&1 || true
 
 # ------------------------------------------------------------------------------
 # [7/7] Post-Installation Health Verification
@@ -235,12 +341,15 @@ fi
 echo -e "\n${GREEN}${BOLD}============================================================"
 echo "          PingDartDB Installation Completed!                "
 echo "============================================================${NC}"
-echo -e "Service  : ${BOLD}pingdartdb${NC} (Active & Enabled)"
-echo -e "CLI Tool : ${BOLD}pingdart${NC} (Available in PATH)"
-echo -e "Config   : ${BOLD}${CONFIG_DIR}/config.toml${NC}"
-echo -e "Data Dir : ${BOLD}${DATA_DIR}/data${NC}"
-echo -e "Logs Dir : ${BOLD}${LOG_DIR}${NC}"
-echo -e "Admin    : ${BOLD}${ADMIN_USER}${NC}"
+echo -e "Service      : ${BOLD}pingdartdb${NC} (Active & Enabled)"
+echo -e "CLI Tool     : ${BOLD}pingdart${NC} (Available in PATH)"
+echo -e "Vault Tool   : ${BOLD}pingdart-vault${NC} (Available in PATH)"
+echo -e "Config       : ${BOLD}${CONFIG_DIR}/config.toml${NC}"
+echo -e "Creds Vault  : ${BOLD}${CONFIG_DIR}/credentials.enc${NC} (AES-256 encrypted, mode 0600)"
+echo -e "Data Dir     : ${BOLD}${DATA_DIR}/data${NC}"
+echo -e "Logs Dir     : ${BOLD}${LOG_DIR}${NC}"
+echo -e "Admin Email  : ${BOLD}${ADMIN_EMAIL}${NC}"
+echo -e "Root User    : ${BOLD}${ADMIN_USER}${NC}"
 echo "------------------------------------------------------------"
 echo "Helpful Administration Commands:"
 echo "  Start service   : sudo systemctl start pingdartdb"
@@ -249,4 +358,6 @@ echo "  Restart service : sudo systemctl restart pingdartdb"
 echo "  Check status    : sudo systemctl status pingdartdb"
 echo "  Follow logs     : sudo journalctl -u pingdartdb -f"
 echo "  Open CLI Client : pingdart"
+echo "  View Vault      : pingdart-vault view (unlock with Security PIN)"
+echo "  Rotate PIN/Pass : pingdart-vault rotate"
 echo "============================================================"
