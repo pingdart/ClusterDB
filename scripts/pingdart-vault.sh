@@ -30,6 +30,8 @@ YELLOW='\033[1;33m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+DEFAULT_PBKDF2_ITERATIONS=600000
+
 get_machine_id() {
     if [ -f /etc/machine-id ] && [ -s /etc/machine-id ]; then
         tr -d ' \n\r' < /etc/machine-id
@@ -42,28 +44,67 @@ get_machine_id() {
     fi
 }
 
+get_host_secret() {
+    local secret_file="${CONFIG_DIR}/.host_secret"
+    if [ -f "${secret_file}" ] && [ -s "${secret_file}" ]; then
+        tr -d ' \n\r' < "${secret_file}"
+    else
+        echo "pingdart-vault-host-secret-fallback"
+    fi
+}
+
+ensure_host_secret() {
+    local secret_file="${CONFIG_DIR}/.host_secret"
+    if [ ! -f "${secret_file}" ]; then
+        mkdir -p "$(dirname "${secret_file}")" 2>/dev/null || true
+        if [ -w "$(dirname "${secret_file}")" ]; then
+            openssl rand -hex 32 > "${secret_file}" 2>/dev/null || echo "host_$(date +%s)" > "${secret_file}"
+            chmod 0400 "${secret_file}" 2>/dev/null || true
+            if getent group pingdart >/dev/null 2>&1; then
+                chown root:pingdart "${secret_file}" 2>/dev/null || true
+            fi
+        fi
+    fi
+}
+
 # Cryptographic Key Derivation Function (PBKDF2 with 600,000 iterations & unique random salt)
 # Both the AES encryption key and HMAC authentication key are independently derived.
 derive_kdf_key() {
     local pin="$1"
     local salt="$2"
     local domain="$3"
+    local iter="${4:-${DEFAULT_PBKDF2_ITERATIONS}}"
     local machine_id
     machine_id=$(get_machine_id)
-    local pass="${pin}::${machine_id}::${domain}"
-    openssl enc -aes-256-cbc -P -pbkdf2 -iter 600000 -pass "pass:${pass}" -S "${salt}" 2>/dev/null | awk -F'=' '/key=/ {print $2}'
+    local host_secret
+    host_secret=$(get_host_secret)
+    local pass="${pin}::${machine_id}::${host_secret}::${domain}"
+    openssl enc -aes-256-cbc -P -pbkdf2 -iter "${iter}" -pass "pass:${pass}" -S "${salt}" 2>/dev/null | awk -F'=' '/key=/ {print $2}'
 }
 
-get_vault_salt() {
+get_vault_param() {
     local vault_src="$1"
-    grep '^SALT:' "${vault_src}" 2>/dev/null | cut -d':' -f2 | tr -d ' \n\r' || echo ""
+    local param_name="$2"
+    grep "^${param_name}:" "${vault_src}" 2>/dev/null | cut -d':' -f2 | tr -d ' \n\r' || echo ""
+}
+
+get_vault_iterations() {
+    local vault_src="$1"
+    local iter
+    iter=$(get_vault_param "${vault_src}" "ITER")
+    if [ -n "${iter}" ] && [[ "${iter}" =~ ^[0-9]+$ ]] && [ "${iter}" -ge 100000 ] && [ "${iter}" -le 5000000 ]; then
+        echo "${iter}"
+    else
+        echo "${DEFAULT_PBKDF2_ITERATIONS}"
+    fi
 }
 
 derive_enc_key() {
     local pin="$1"
     local salt="${2:-}"
+    local iter="${3:-${DEFAULT_PBKDF2_ITERATIONS}}"
     if [ -n "${salt}" ]; then
-        derive_kdf_key "${pin}" "${salt}" "pingdart-vault-aes-enc-v3"
+        derive_kdf_key "${pin}" "${salt}" "pingdart-vault-aes-enc-v3" "${iter}"
     else
         local machine_id
         machine_id=$(get_machine_id)
@@ -74,8 +115,9 @@ derive_enc_key() {
 derive_mac_key() {
     local pin="$1"
     local salt="${2:-}"
+    local iter="${3:-${DEFAULT_PBKDF2_ITERATIONS}}"
     if [ -n "${salt}" ]; then
-        derive_kdf_key "${pin}" "${salt}" "pingdart-vault-hmac-auth-v3"
+        derive_kdf_key "${pin}" "${salt}" "pingdart-vault-hmac-auth-v3" "${iter}"
     else
         local machine_id
         machine_id=$(get_machine_id)
@@ -122,6 +164,8 @@ cmd_create() {
 
     mkdir -p "$(dirname "${vault_dest}")"
 
+    ensure_host_secret
+
     local machine_id
     machine_id=$(get_machine_id)
 
@@ -131,9 +175,9 @@ cmd_create() {
 
     # 2. Derive independent encryption and HMAC keys using PBKDF2 (600,000 iterations)
     local enc_key
-    enc_key=$(derive_enc_key "${pin}" "${salt}")
+    enc_key=$(derive_enc_key "${pin}" "${salt}" "${DEFAULT_PBKDF2_ITERATIONS}")
     local mac_key
-    mac_key=$(derive_mac_key "${pin}" "${salt}")
+    mac_key=$(derive_mac_key "${pin}" "${salt}" "${DEFAULT_PBKDF2_ITERATIONS}")
 
     local json_payload
     json_payload=$(printf '{"email":"%s","username":"%s","password":"%s","machine_id":"%s","created_at":%d}' \
@@ -143,16 +187,17 @@ cmd_create() {
     tmp_cipher=$(mktemp)
     TMP_CLEANUP_FILES+=("${tmp_cipher}")
 
-    # 3. Encrypt payload using AES-256-CBC with PBKDF2 enc_key
-    echo -n "${json_payload}" | openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -salt -pass "pass:${enc_key}" -out "${tmp_cipher}"
+    # 3. Encrypt payload using AES-256-CBC with matching PBKDF2 iteration count
+    echo -n "${json_payload}" | openssl enc -aes-256-cbc -pbkdf2 -iter "${DEFAULT_PBKDF2_ITERATIONS}" -salt -pass "pass:${enc_key}" -out "${tmp_cipher}"
 
     # 4. Compute HMAC-SHA256 authentication tag using independent PBKDF2 mac_key
     local hmac_tag
     hmac_tag=$(openssl dgst -sha256 -hmac "${mac_key}" "${tmp_cipher}" | awk '{print $NF}')
 
-    # 5. Assemble authenticated container with explicit salt and HMAC tag
+    # 5. Assemble authenticated container with explicit iteration count, salt, and HMAC tag
     {
         echo "# PINGDART_AUTHENTICATED_VAULT_V3"
+        echo "ITER:${DEFAULT_PBKDF2_ITERATIONS}"
         echo "SALT:${salt}"
         echo "HMAC:${hmac_tag}"
         openssl base64 -in "${tmp_cipher}"
@@ -160,7 +205,7 @@ cmd_create() {
 
     rm -f "${tmp_cipher}"
     set_vault_permissions "${vault_dest}"
-    echo "Encrypted authenticated vault created at ${vault_dest} (mode: 0600)."
+    echo "Encrypted authenticated vault created at ${vault_dest} (mode: 0600, PBKDF2: ${DEFAULT_PBKDF2_ITERATIONS} iterations)."
 }
 
 # Internal helper to verify HMAC in constant time and extract ciphertext
@@ -175,10 +220,12 @@ extract_and_verify_vault() {
     fi
 
     local salt
-    salt=$(get_vault_salt "${vault_src}")
+    salt=$(get_vault_param "${vault_src}" "SALT")
+    local iterations
+    iterations=$(get_vault_iterations "${vault_src}")
 
     local mac_key
-    mac_key=$(derive_mac_key "${pin}" "${salt}")
+    mac_key=$(derive_mac_key "${pin}" "${salt}" "${iterations}")
 
     # Check container format
     if head -n 1 "${vault_src}" | grep -q "PINGDART_AUTHENTICATED_VAULT_"; then
@@ -186,12 +233,12 @@ extract_and_verify_vault() {
         expected_hmac=$(grep '^HMAC:' "${vault_src}" | cut -d':' -f2 | tr -d ' \n\r')
 
         # Decode base64 ciphertext
-        grep -v '^#' "${vault_src}" | grep -v '^SALT:' | grep -v '^HMAC:' | openssl base64 -d -out "${out_cipher}" 2>/dev/null || {
+        grep -v '^#' "${vault_src}" | grep -v '^ITER:' | grep -v '^SALT:' | grep -v '^HMAC:' | openssl base64 -d -out "${out_cipher}" 2>/dev/null || {
             echo -e "${RED}[ERROR] Vault container format is corrupted.${NC}" >&2
             return 1
         }
 
-        # Verify HMAC-SHA256 tag in constant time
+        # Verify HMAC-SHA256 tag in constant time BEFORE decryption
         local computed_hmac
         computed_hmac=$(openssl dgst -sha256 -hmac "${mac_key}" "${out_cipher}" | awk '{print $NF}')
 
@@ -214,7 +261,7 @@ cmd_verify() {
     local pin="${1:-}"
     local target_vault="${2:-${VAULT_FILE}}"
     if [ -z "${pin}" ]; then
-        echo -n "Enter Security PIN (4-8 digits): "
+        echo -n "Enter Security PIN or Passphrase: "
         stty -echo 2>/dev/null || true
         read -r pin
         stty echo 2>/dev/null || true
@@ -234,14 +281,13 @@ cmd_verify() {
     fi
 
     local salt
-    salt=$(get_vault_salt "${target_vault}")
+    salt=$(get_vault_param "${target_vault}" "SALT")
+    local iterations
+    iterations=$(get_vault_iterations "${target_vault}")
     local enc_key
-    enc_key=$(derive_enc_key "${pin}" "${salt}")
+    enc_key=$(derive_enc_key "${pin}" "${salt}" "${iterations}")
 
-    local iter_flag="-pbkdf2 -iter 100000"
-    [ -z "${salt}" ] && iter_flag="-pbkdf2 -iter 600000"
-
-    if openssl enc -d -aes-256-cbc ${iter_flag} -pass "pass:${enc_key}" \
+    if openssl enc -d -aes-256-cbc -pbkdf2 -iter "${iterations}" -pass "pass:${enc_key}" \
         -in "${tmp_cipher}" >/dev/null 2>&1; then
         rm -f "${tmp_cipher}"
         echo -e "${GREEN}✅ Vault verified successfully! HMAC integrity valid, PIN correct, and machine binding matches.${NC}"
@@ -260,7 +306,7 @@ cmd_view() {
     local pin="${1:-}"
     local target_vault="${2:-${VAULT_FILE}}"
     if [ -z "${pin}" ]; then
-        echo -n "Enter Security PIN: "
+        echo -n "Enter Security PIN or Passphrase: "
         stty -echo 2>/dev/null || true
         read -r pin
         stty echo 2>/dev/null || true
@@ -280,15 +326,14 @@ cmd_view() {
     fi
 
     local salt
-    salt=$(get_vault_salt "${target_vault}")
+    salt=$(get_vault_param "${target_vault}" "SALT")
+    local iterations
+    iterations=$(get_vault_iterations "${target_vault}")
     local enc_key
-    enc_key=$(derive_enc_key "${pin}" "${salt}")
-
-    local iter_flag="-pbkdf2 -iter 100000"
-    [ -z "${salt}" ] && iter_flag="-pbkdf2 -iter 600000"
+    enc_key=$(derive_enc_key "${pin}" "${salt}" "${iterations}")
 
     local decrypted
-    if ! decrypted=$(openssl enc -d -aes-256-cbc ${iter_flag} -pass "pass:${enc_key}" -in "${tmp_cipher}" 2>/dev/null); then
+    if ! decrypted=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter "${iterations}" -pass "pass:${enc_key}" -in "${tmp_cipher}" 2>/dev/null); then
         rm -f "${tmp_cipher}"
         echo -e "${RED}[ERROR] Decryption failed. Incorrect PIN or unauthorized host machine.${NC}"
         exit 1
@@ -308,7 +353,7 @@ cmd_view() {
 # ------------------------------------------------------------------------------
 cmd_rotate() {
     local target_vault="${1:-${VAULT_FILE}}"
-    echo -n "Enter CURRENT Security PIN: "
+    echo -n "Enter CURRENT Security PIN or Passphrase: "
     stty -echo 2>/dev/null || true
     read -r old_pin
     stty echo 2>/dev/null || true
@@ -327,15 +372,14 @@ cmd_rotate() {
     fi
 
     local salt
-    salt=$(get_vault_salt "${target_vault}")
+    salt=$(get_vault_param "${target_vault}" "SALT")
+    local iterations
+    iterations=$(get_vault_iterations "${target_vault}")
     local enc_key
-    enc_key=$(derive_enc_key "${old_pin}" "${salt}")
-
-    local iter_flag="-pbkdf2 -iter 100000"
-    [ -z "${salt}" ] && iter_flag="-pbkdf2 -iter 600000"
+    enc_key=$(derive_enc_key "${old_pin}" "${salt}" "${iterations}")
 
     local decrypted
-    if ! decrypted=$(openssl enc -d -aes-256-cbc ${iter_flag} -pass "pass:${enc_key}" -in "${tmp_cipher}" 2>/dev/null); then
+    if ! decrypted=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter "${iterations}" -pass "pass:${enc_key}" -in "${tmp_cipher}" 2>/dev/null); then
         rm -f "${tmp_cipher}"
         echo -e "${RED}[ERROR] Authentication failed. Current PIN is incorrect.${NC}"
         exit 1
@@ -359,7 +403,7 @@ cmd_rotate() {
         new_pass=$(echo "${decrypted}" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
     fi
 
-    echo -n "Enter NEW Security PIN (4-8 digits, leave blank to keep current): "
+    echo -n "Enter NEW Security PIN or Passphrase (leave blank to keep current): "
     stty -echo 2>/dev/null || true
     read -r new_pin
     stty echo 2>/dev/null || true

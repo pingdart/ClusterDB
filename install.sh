@@ -217,19 +217,19 @@ if [ -t 0 ] && [ -z "${PINGDART_ADMIN_EMAIL:-}" ]; then
         ADMIN_PASS="${PASS_IN}"
     fi
 
-    # 4. Masked Security PIN Prompt (4-8 digits)
+    # 4. Masked Security PIN or Passphrase Prompt
     while true; do
-        echo -n "Enter Security PIN (4-8 digits) [default: 80181]: "
+        echo -n "Enter Security PIN or Passphrase (min 4 chars) [default: 80181]: "
         stty -echo 2>/dev/null || true
         read -r PIN_IN
         stty echo 2>/dev/null || true
         echo ""
         PIN_IN="${PIN_IN:-80181}"
-        if [[ "${PIN_IN}" =~ ^[0-9]{4,8}$ ]]; then
+        if [ "${#PIN_IN}" -ge 4 ] && [ "${#PIN_IN}" -le 64 ]; then
             ADMIN_PIN="${PIN_IN}"
             break
         else
-            echo -e "${RED}[ERROR] Security PIN must be 4 to 8 numeric digits.${NC}"
+            echo -e "${RED}[ERROR] Security PIN or Passphrase must be between 4 and 64 characters.${NC}"
         fi
     done
 else
@@ -238,8 +238,8 @@ else
         echo -e "${RED}[ERROR] Invalid email format in PINGDART_ADMIN_EMAIL: '${ADMIN_EMAIL}'${NC}"
         exit 1
     fi
-    if [[ ! "${ADMIN_PIN}" =~ ^[0-9]{4,8}$ ]]; then
-        echo -e "${RED}[ERROR] PINGDART_ADMIN_PIN must be 4 to 8 numeric digits. Given: '${ADMIN_PIN}'${NC}"
+    if [ "${#ADMIN_PIN}" -lt 4 ] || [ "${#ADMIN_PIN}" -gt 64 ]; then
+        echo -e "${RED}[ERROR] PINGDART_ADMIN_PIN must be between 4 and 64 characters. Given length: ${#ADMIN_PIN}${NC}"
         exit 1
     fi
 fi
