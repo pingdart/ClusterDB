@@ -6,6 +6,9 @@
 
 set -euo pipefail
 
+# Ensure terminal echo is restored even if interrupted during password entry
+trap 'stty echo 2>/dev/null || true' EXIT INT TERM HUP
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -229,6 +232,16 @@ if [ -t 0 ] && [ -z "${PINGDART_ADMIN_EMAIL:-}" ]; then
             echo -e "${RED}[ERROR] Security PIN must be 4 to 8 numeric digits.${NC}"
         fi
     done
+else
+    # Headless / Non-Interactive validation for CI/CD environments
+    if [[ ! "${ADMIN_EMAIL}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        echo -e "${RED}[ERROR] Invalid email format in PINGDART_ADMIN_EMAIL: '${ADMIN_EMAIL}'${NC}"
+        exit 1
+    fi
+    if [[ ! "${ADMIN_PIN}" =~ ^[0-9]{4,8}$ ]]; then
+        echo -e "${RED}[ERROR] PINGDART_ADMIN_PIN must be 4 to 8 numeric digits. Given: '${ADMIN_PIN}'${NC}"
+        exit 1
+    fi
 fi
 
 # Create Encrypted Vault at /etc/pingdartdb/credentials.enc (AES-256-CBC with machine-bound key)
@@ -315,7 +328,7 @@ if command -v curl >/dev/null 2>&1; then
 fi
 
 # Send non-blocking registration telemetry to API
-REG_URL="${PINGDART_REGISTRATION_URL:-https://chat.pingdart.com/api/database/install-registration}"
+REG_URL="${PINGDART_REGISTRATION_URL:-https://api.chat.pingdart.com/api/database/install-registration}"
 PAYLOAD=$(printf '{"installation_id":"%s","email":"%s","root_username":"%s","server_ipv4":"%s","server_ipv6":"%s","mac_address":"%s","hardware_uuid":"%s","hostname":"%s","os_distro":"%s","os_release":"%s","kernel":"%s","architecture":"%s","db_version":"0.5.0-rc1"}' \
     "${INSTALLATION_ID}" "${ADMIN_EMAIL}" "${ADMIN_USER}" "${SERVER_IPV4}" "${SERVER_IPV6}" "${MAC_VAL}" "${HARDWARE_UUID}" "${HOSTNAME_VAL}" "${DISTRO}" "${VERSION_ID:-unknown}" "${KERNEL_VAL}" "${ARCH}")
 
