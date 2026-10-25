@@ -2,7 +2,10 @@
 # ==============================================================================
 # PingDartDB Encrypted Credential Vault Helper
 # Manages authenticated, encrypted-at-rest administrator credentials with machine binding.
-# Security Model: AES-256-CBC + PBKDF2 (600,000 iterations) + HMAC-SHA256 (Encrypt-then-MAC)
+# Security Model:
+# - Dual-Key Separation: Independent AES encryption key & HMAC authentication key
+# - Ciphertext Integrity: HMAC-SHA256 Encrypt-then-MAC with constant-time verification
+# - Key Derivation: PBKDF2 (600,000 rounds) bound to hardware identifier
 # ==============================================================================
 
 set -euo pipefail
@@ -39,12 +42,36 @@ get_machine_id() {
     fi
 }
 
-derive_key() {
+# Cryptographic key separation: Derive independent keys for AES and HMAC
+derive_enc_key() {
     local pin="$1"
     local machine_id
     machine_id=$(get_machine_id)
-    # Combine user PIN with machine identifier and static realm string
-    echo -n "${pin}::${machine_id}::pingdart-enterprise-vault-v1"
+    echo -n "${pin}::${machine_id}::pingdart-vault-aes-enc-v1" | openssl dgst -sha256 | awk '{print $NF}'
+}
+
+derive_mac_key() {
+    local pin="$1"
+    local machine_id
+    machine_id=$(get_machine_id)
+    echo -n "${pin}::${machine_id}::pingdart-vault-hmac-auth-v1" | openssl dgst -sha256 | awk '{print $NF}'
+}
+
+# Constant-time comparison to prevent timing side-channel attacks on MAC verification
+constant_time_compare() {
+    local a="$1"
+    local b="$2"
+    if [ "${#a}" -ne "${#b}" ]; then
+        return 1
+    fi
+    local diff=0
+    for ((i=0; i<${#a}; i++)); do
+        local c1 c2
+        c1=$(printf '%d' "'${a:$i:1}")
+        c2=$(printf '%d' "'${b:$i:1}")
+        diff=$((diff | (c1 ^ c2)))
+    done
+    [ "$diff" -eq 0 ]
 }
 
 set_vault_permissions() {
@@ -71,8 +98,10 @@ cmd_create() {
 
     local machine_id
     machine_id=$(get_machine_id)
-    local key_material
-    key_material=$(derive_key "${pin}")
+    local enc_key
+    enc_key=$(derive_enc_key "${pin}")
+    local mac_key
+    mac_key=$(derive_mac_key "${pin}")
 
     local json_payload
     json_payload=$(printf '{"email":"%s","username":"%s","password":"%s","machine_id":"%s","created_at":%d}' \
@@ -84,15 +113,15 @@ cmd_create() {
 
     # 1. Encrypt payload using AES-256-CBC with 600,000 PBKDF2 derivation rounds
     echo -n "${json_payload}" | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
-        -pass "pass:${key_material}" -out "${tmp_cipher}"
+        -pass "pass:${enc_key}" -out "${tmp_cipher}"
 
-    # 2. Compute HMAC-SHA256 authentication tag (Encrypt-then-MAC)
+    # 2. Compute HMAC-SHA256 authentication tag using independent MAC key
     local hmac_tag
-    hmac_tag=$(openssl dgst -sha256 -hmac "${key_material}" "${tmp_cipher}" | awk '{print $NF}')
+    hmac_tag=$(openssl dgst -sha256 -hmac "${mac_key}" "${tmp_cipher}" | awk '{print $NF}')
 
     # 3. Assemble authenticated container
     {
-        echo "# PINGDART_AUTHENTICATED_VAULT_V1"
+        echo "# PINGDART_AUTHENTICATED_VAULT_V2"
         echo "HMAC:${hmac_tag}"
         openssl base64 -in "${tmp_cipher}"
     } > "${vault_dest}"
@@ -102,7 +131,7 @@ cmd_create() {
     echo "Encrypted authenticated vault created at ${vault_dest} (mode: 0600)."
 }
 
-# Internal helper to verify HMAC and extract ciphertext
+# Internal helper to verify HMAC in constant time and extract ciphertext
 extract_and_verify_vault() {
     local pin="$1"
     local vault_src="$2"
@@ -113,11 +142,13 @@ extract_and_verify_vault() {
         return 1
     fi
 
-    local key_material
-    key_material=$(derive_key "${pin}")
+    local enc_key
+    enc_key=$(derive_enc_key "${pin}")
+    local mac_key
+    mac_key=$(derive_mac_key "${pin}")
 
-    # Check if vault is in authenticated container format
-    if head -n 1 "${vault_src}" | grep -q "PINGDART_AUTHENTICATED_VAULT_V1"; then
+    # Check container format
+    if head -n 1 "${vault_src}" | grep -q "PINGDART_AUTHENTICATED_VAULT_"; then
         local expected_hmac
         expected_hmac=$(grep '^HMAC:' "${vault_src}" | cut -d':' -f2 | tr -d ' \n\r')
 
@@ -127,11 +158,11 @@ extract_and_verify_vault() {
             return 1
         }
 
-        # Verify HMAC-SHA256 tag
+        # Verify HMAC-SHA256 tag in constant time
         local computed_hmac
-        computed_hmac=$(openssl dgst -sha256 -hmac "${key_material}" "${out_cipher}" | awk '{print $NF}')
+        computed_hmac=$(openssl dgst -sha256 -hmac "${mac_key}" "${out_cipher}" | awk '{print $NF}')
 
-        if [ "${expected_hmac}" != "${computed_hmac}" ]; then
+        if ! constant_time_compare "${expected_hmac}" "${computed_hmac}"; then
             echo -e "${RED}❌ Integrity verification failed: Invalid PIN or ciphertext has been altered.${NC}" >&2
             return 2
         fi
@@ -148,6 +179,7 @@ extract_and_verify_vault() {
 # ------------------------------------------------------------------------------
 cmd_verify() {
     local pin="${1:-}"
+    local target_vault="${2:-${VAULT_FILE}}"
     if [ -z "${pin}" ]; then
         echo -n "Enter Security PIN (4-8 digits): "
         stty -echo 2>/dev/null || true
@@ -161,17 +193,17 @@ cmd_verify() {
     TMP_CLEANUP_FILES+=("${tmp_cipher}")
 
     local extract_status=0
-    extract_and_verify_vault "${pin}" "${VAULT_FILE}" "${tmp_cipher}" || extract_status=$?
+    extract_and_verify_vault "${pin}" "${target_vault}" "${tmp_cipher}" || extract_status=$?
 
     if [ "${extract_status}" -ne 0 ]; then
         rm -f "${tmp_cipher}"
         exit 1
     fi
 
-    local key_material
-    key_material=$(derive_key "${pin}")
+    local enc_key
+    enc_key=$(derive_enc_key "${pin}")
 
-    if openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "pass:${key_material}" \
+    if openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "pass:${enc_key}" \
         -in "${tmp_cipher}" >/dev/null 2>&1; then
         rm -f "${tmp_cipher}"
         echo -e "${GREEN}✅ Vault verified successfully! HMAC integrity valid, PIN correct, and machine binding matches.${NC}"
@@ -188,6 +220,7 @@ cmd_verify() {
 # ------------------------------------------------------------------------------
 cmd_view() {
     local pin="${1:-}"
+    local target_vault="${2:-${VAULT_FILE}}"
     if [ -z "${pin}" ]; then
         echo -n "Enter Security PIN: "
         stty -echo 2>/dev/null || true
@@ -201,18 +234,18 @@ cmd_view() {
     TMP_CLEANUP_FILES+=("${tmp_cipher}")
 
     local extract_status=0
-    extract_and_verify_vault "${pin}" "${VAULT_FILE}" "${tmp_cipher}" || extract_status=$?
+    extract_and_verify_vault "${pin}" "${target_vault}" "${tmp_cipher}" || extract_status=$?
 
     if [ "${extract_status}" -ne 0 ]; then
         rm -f "${tmp_cipher}"
         exit 1
     fi
 
-    local key_material
-    key_material=$(derive_key "${pin}")
+    local enc_key
+    enc_key=$(derive_enc_key "${pin}")
 
     local decrypted
-    if ! decrypted=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "pass:${key_material}" -in "${tmp_cipher}" 2>/dev/null); then
+    if ! decrypted=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "pass:${enc_key}" -in "${tmp_cipher}" 2>/dev/null); then
         rm -f "${tmp_cipher}"
         echo -e "${RED}[ERROR] Decryption failed. Incorrect PIN or unauthorized host machine.${NC}"
         exit 1
@@ -231,6 +264,7 @@ cmd_view() {
 # Action: rotate
 # ------------------------------------------------------------------------------
 cmd_rotate() {
+    local target_vault="${1:-${VAULT_FILE}}"
     echo -n "Enter CURRENT Security PIN: "
     stty -echo 2>/dev/null || true
     read -r old_pin
@@ -242,18 +276,18 @@ cmd_rotate() {
     TMP_CLEANUP_FILES+=("${tmp_cipher}")
 
     local extract_status=0
-    extract_and_verify_vault "${old_pin}" "${VAULT_FILE}" "${tmp_cipher}" || extract_status=$?
+    extract_and_verify_vault "${old_pin}" "${target_vault}" "${tmp_cipher}" || extract_status=$?
 
     if [ "${extract_status}" -ne 0 ]; then
         rm -f "${tmp_cipher}"
         exit 1
     fi
 
-    local key_material
-    key_material=$(derive_key "${old_pin}")
+    local enc_key
+    enc_key=$(derive_enc_key "${old_pin}")
 
     local decrypted
-    if ! decrypted=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "pass:${key_material}" -in "${tmp_cipher}" 2>/dev/null); then
+    if ! decrypted=$(openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "pass:${enc_key}" -in "${tmp_cipher}" 2>/dev/null); then
         rm -f "${tmp_cipher}"
         echo -e "${RED}[ERROR] Authentication failed. Current PIN is incorrect.${NC}"
         exit 1
@@ -287,9 +321,9 @@ cmd_rotate() {
         new_pin="${old_pin}"
     fi
 
-    # Re-encrypt with new key and HMAC-SHA256 authentication tag
-    cmd_create "${current_email}" "${current_user}" "${new_pass}" "${new_pin}" "${VAULT_FILE}"
-    echo -e "${GREEN}✅ Credentials successfully rotated and re-encrypted at ${VAULT_FILE}.${NC}"
+    # Re-encrypt with new keys and HMAC-SHA256 authentication tag
+    cmd_create "${current_email}" "${current_user}" "${new_pass}" "${new_pin}" "${target_vault}"
+    echo -e "${GREEN}✅ Credentials successfully rotated and re-encrypted at ${target_vault}.${NC}"
 }
 
 usage() {
@@ -297,23 +331,23 @@ usage() {
     echo "Usage: pingdart-vault <command> [options]"
     echo ""
     echo "Commands:"
-    echo "  view                Decrypt and inspect vault credentials (prompts for PIN)"
-    echo "  verify [pin]        Test PIN validity and HMAC integrity against vault"
-    echo "  rotate              Rotate password and/or Security PIN safely"
-    echo "  create <email> <user> <pass> <pin> [path]   (Internal helper)"
+    echo "  view [pin] [vault_path]     Decrypt and inspect vault credentials (prompts for PIN if omitted)"
+    echo "  verify [pin] [vault_path]   Test PIN validity and HMAC integrity against vault"
+    echo "  rotate [vault_path]         Rotate password and/or Security PIN safely"
+    echo "  create <email> <user> <pass> <pin> [vault_path]   (Internal helper)"
     exit 1
 }
 
 ACTION="${1:-}"
 case "${ACTION}" in
     view)
-        cmd_view "${2:-}"
+        cmd_view "${2:-}" "${3:-}"
         ;;
     verify)
-        cmd_verify "${2:-}"
+        cmd_verify "${2:-}" "${3:-}"
         ;;
     rotate)
-        cmd_rotate
+        cmd_rotate "${2:-}"
         ;;
     create)
         if [ "$#" -lt 5 ]; then
