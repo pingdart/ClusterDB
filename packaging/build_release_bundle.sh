@@ -38,6 +38,8 @@ cp "${SCRIPT_DIR}/packaging/pingdartdb.service" "${BUNDLE_DIR}/packaging/"
 cp "${SCRIPT_DIR}/packaging/pingdartdb.logrotate" "${BUNDLE_DIR}/packaging/"
 cp "${SCRIPT_DIR}/scripts/health-check.sh" "${BUNDLE_DIR}/scripts/"
 cp "${SCRIPT_DIR}/scripts/create-admin.sh" "${BUNDLE_DIR}/scripts/"
+cp "${SCRIPT_DIR}/scripts/pingdart-vault.sh" "${BUNDLE_DIR}/scripts/"
+cp "${SCRIPT_DIR}/scripts/verify-backup-restore.sh" "${BUNDLE_DIR}/scripts/"
 cp "${SCRIPT_DIR}/README.md" "${BUNDLE_DIR}/"
 
 # 3. Create Tarball
