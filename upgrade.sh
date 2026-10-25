@@ -52,15 +52,23 @@ if [ ! -f "${NEW_SERVER}" ] || [ ! -f "${NEW_CLI}" ]; then
     exit 1
 fi
 
-# 3. Create Pre-Upgrade Backup Snapshot
+# 3. Create Pre-Upgrade Backup Snapshot (ACID & WAL Consistent)
 echo -e "${BLUE}[2/5] Creating pre-upgrade backup snapshot...${NC}"
 mkdir -p "${BACKUP_DIR}"
+
+WAS_RUNNING=0
+if systemctl is-active --quiet pingdartdb 2>/dev/null; then
+    echo "Pausing service briefly to ensure clean WAL flush and ACID snapshot consistency..."
+    systemctl stop pingdartdb.service
+    WAS_RUNNING=1
+fi
+sync
 
 if [ -d "${DATA_DIR}/data" ]; then
     tar -czf "${BACKUP_ARCHIVE}" -C "${DATA_DIR}" data 2>/dev/null || true
     chown pingdart:pingdart "${BACKUP_ARCHIVE}" 2>/dev/null || true
     chmod 0600 "${BACKUP_ARCHIVE}" 2>/dev/null || true
-    echo "Snapshot saved: ${BACKUP_ARCHIVE}"
+    echo "Consistent database snapshot saved: ${BACKUP_ARCHIVE}"
 fi
 
 # 4. Backup Existing Binaries
@@ -73,12 +81,12 @@ if [ -f "${BIN_DIR}/pingdart" ]; then
 fi
 
 # 5. Swap Binaries and Restart Service
-echo -e "${BLUE}[4/5] Swapping binaries and restarting pingdartdb service...${NC}"
+echo -e "${BLUE}[4/5] Swapping binaries and starting updated pingdartdb service...${NC}"
 install -m 0755 "${NEW_SERVER}" "${BIN_DIR}/pingdart-core"
 install -m 0755 "${NEW_CLI}" "${BIN_DIR}/pingdart"
 
-# Brief service restart (minimal downtime)
-systemctl restart pingdartdb.service || true
+# Start service
+systemctl start pingdartdb.service || true
 
 # 6. Post-Upgrade Health Verification & Rollback Protection
 echo -e "${BLUE}[5/5] Performing post-upgrade health probe...${NC}"
@@ -105,8 +113,10 @@ if [ "${UPGRADE_SUCCESS}" -eq 1 ]; then
     echo "Current binary: $(/usr/local/bin/pingdart-core --version 2>/dev/null || echo 'v0.5.0')"
     exit 0
 else
-    echo -e "\n${RED}${BOLD}[ALERT] Post-upgrade health check failed! Initiating automatic rollback...${NC}"
+    echo -e "\n${RED}${BOLD}[ALERT] Post-upgrade health check failed! Initiating full automatic rollback...${NC}"
+    systemctl stop pingdartdb.service 2>/dev/null || true
     
+    # 1. Restore Binaries
     if [ -f "${BIN_DIR}/pingdart-core.rollback" ]; then
         cp -p "${BIN_DIR}/pingdart-core.rollback" "${BIN_DIR}/pingdart-core"
         echo "Restored previous pingdart-core binary."
@@ -116,8 +126,18 @@ else
         echo "Restored previous pingdart CLI binary."
     fi
     
-    systemctl restart pingdartdb.service || true
-    echo -e "${YELLOW}Service rolled back to previous version. Check logs with: sudo journalctl -u pingdartdb -n 50${NC}"
+    # 2. Restore Database Data & Schema from Snapshot
+    if [ -f "${BACKUP_ARCHIVE}" ]; then
+        echo "Restoring database data and schema catalog from pre-upgrade snapshot..."
+        rm -rf "${DATA_DIR}/data"
+        tar -xzf "${BACKUP_ARCHIVE}" -C "${DATA_DIR}"
+        chown -R pingdart:pingdart "${DATA_DIR}/data" 2>/dev/null || true
+        chmod -R 0700 "${DATA_DIR}/data" 2>/dev/null || true
+    fi
+    
+    systemctl start pingdartdb.service || true
+    echo -e "${YELLOW}Service and database state rolled back to pre-upgrade version.${NC}"
+    echo "Check logs with: sudo journalctl -u pingdartdb -n 50"
     echo "Pre-upgrade database snapshot remains intact at: ${BACKUP_ARCHIVE}"
     exit 1
 fi

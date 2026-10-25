@@ -176,7 +176,8 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             "-p" | "--password" => {
-                if i + 1 < args.len() {
+                if i + 1 < args.len() && !args[i + 1].starts_with('-') {
+                    eprintln!("Notice: Passing password via CLI argument can expose secrets in process listings. Consider using PINGDART_PASSWORD environment variable or interactive prompt.");
                     arg_pass = Some(args[i + 1].clone());
                     i += 1;
                 }
@@ -230,6 +231,18 @@ async fn main() -> anyhow::Result<()> {
             _ => {}
         }
         i += 1;
+    }
+
+    // Support environment variables for protected automation
+    if arg_pass.is_none() {
+        if let Ok(env_p) = env::var("PINGDART_PASSWORD") {
+            arg_pass = Some(env_p);
+        }
+    }
+    if arg_user.is_none() {
+        if let Ok(env_u) = env::var("PINGDART_USER") {
+            arg_user = Some(env_u);
+        }
     }
 
     let base_url = format!("http://{}:{}", host, port);
