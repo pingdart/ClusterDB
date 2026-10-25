@@ -54,8 +54,19 @@ get_host_secret() {
 }
 
 ensure_host_secret() {
+    local target_vault="${1:-${VAULT_FILE}}"
     local secret_file="${CONFIG_DIR}/.host_secret"
     if [ ! -f "${secret_file}" ]; then
+        # Critical guard: If vault already exists but host secret is missing, DO NOT silently overwrite!
+        if [ -f "${target_vault}" ]; then
+            echo -e "${RED}[ERROR] Vault exists at ${target_vault} but host secret ${secret_file} is missing!${NC}" >&2
+            echo -e "${RED}Refusing to generate a new host secret as it would render existing credentials permanently unrecoverable.${NC}" >&2
+            echo -e "${YELLOW}Recovery options:${NC}" >&2
+            echo -e "  1. Restore ${secret_file} from backup, OR" >&2
+            echo -e "  2. If re-initializing, delete ${target_vault} before re-running create.${NC}" >&2
+            return 1
+        fi
+
         mkdir -p "$(dirname "${secret_file}")" 2>/dev/null || true
         if [ -w "$(dirname "${secret_file}")" ]; then
             openssl rand -hex 32 > "${secret_file}" 2>/dev/null || echo "host_$(date +%s)" > "${secret_file}"
@@ -164,7 +175,7 @@ cmd_create() {
 
     mkdir -p "$(dirname "${vault_dest}")"
 
-    ensure_host_secret
+    ensure_host_secret "${vault_dest}"
 
     local machine_id
     machine_id=$(get_machine_id)
@@ -190,9 +201,18 @@ cmd_create() {
     # 3. Encrypt payload using AES-256-CBC with matching PBKDF2 iteration count
     echo -n "${json_payload}" | openssl enc -aes-256-cbc -pbkdf2 -iter "${DEFAULT_PBKDF2_ITERATIONS}" -salt -pass "pass:${enc_key}" -out "${tmp_cipher}"
 
-    # 4. Compute HMAC-SHA256 authentication tag using independent PBKDF2 mac_key
+    # 4. Compute HMAC-SHA256 authentication tag over Associated Data (Envelope Headers + Ciphertext)
+    local tmp_auth_input
+    tmp_auth_input=$(mktemp)
+    TMP_CLEANUP_FILES+=("${tmp_auth_input}")
+    {
+        printf "PINGDART_AUTHENTICATED_VAULT_V3\nITER:%s\nSALT:%s\n" "${DEFAULT_PBKDF2_ITERATIONS}" "${salt}"
+        cat "${tmp_cipher}"
+    } > "${tmp_auth_input}"
+
     local hmac_tag
-    hmac_tag=$(openssl dgst -sha256 -hmac "${mac_key}" "${tmp_cipher}" | awk '{print $NF}')
+    hmac_tag=$(openssl dgst -sha256 -hmac "${mac_key}" "${tmp_auth_input}" | awk '{print $NF}')
+    rm -f "${tmp_auth_input}"
 
     # 5. Assemble authenticated container with explicit iteration count, salt, and HMAC tag
     {
@@ -238,12 +258,30 @@ extract_and_verify_vault() {
             return 1
         }
 
-        # Verify HMAC-SHA256 tag in constant time BEFORE decryption
+        # Verify HMAC-SHA256 tag in constant time over Associated Data BEFORE decryption
+        local tmp_auth_input
+        tmp_auth_input=$(mktemp)
+        TMP_CLEANUP_FILES+=("${tmp_auth_input}")
+
+        local container_header
+        container_header=$(head -n 1 "${vault_src}" | tr -d '# \r\n')
+
+        if [ "${container_header}" = "PINGDART_AUTHENTICATED_VAULT_V3" ]; then
+            {
+                printf "PINGDART_AUTHENTICATED_VAULT_V3\nITER:%s\nSALT:%s\n" "${iterations}" "${salt}"
+                cat "${out_cipher}"
+            } > "${tmp_auth_input}"
+        else
+            # V2 backwards-compatibility fallback
+            cp "${out_cipher}" "${tmp_auth_input}"
+        fi
+
         local computed_hmac
-        computed_hmac=$(openssl dgst -sha256 -hmac "${mac_key}" "${out_cipher}" | awk '{print $NF}')
+        computed_hmac=$(openssl dgst -sha256 -hmac "${mac_key}" "${tmp_auth_input}" | awk '{print $NF}')
+        rm -f "${tmp_auth_input}"
 
         if ! constant_time_compare "${expected_hmac}" "${computed_hmac}"; then
-            echo -e "${RED}❌ Integrity verification failed: Invalid PIN or ciphertext has been altered.${NC}" >&2
+            echo -e "${RED}❌ Integrity verification failed: Invalid PIN or vault metadata/ciphertext has been altered.${NC}" >&2
             return 2
         fi
         return 0
@@ -305,6 +343,13 @@ cmd_verify() {
 cmd_view() {
     local pin="${1:-}"
     local target_vault="${2:-${VAULT_FILE}}"
+    local show_pass=0
+    for arg in "$@"; do
+        if [ "$arg" = "--show-password" ] || [ "$arg" = "-s" ]; then
+            show_pass=1
+        fi
+    done
+
     if [ -z "${pin}" ]; then
         echo -n "Enter Security PIN or Passphrase: "
         stty -echo 2>/dev/null || true
@@ -344,7 +389,11 @@ cmd_view() {
     echo "${decrypted}" | grep -o '"[^"]*":\("[^"]*"\|[0-9]*\)' | while read -r line; do
         key=$(echo "${line}" | cut -d':' -f1 | tr -d '"')
         val=$(echo "${line}" | cut -d':' -f2 | tr -d '"')
-        printf "%-15s : %s\n" "${key}" "${val}"
+        if [ "${key}" = "password" ] && [ "${show_pass}" -ne 1 ]; then
+            printf "%-15s : %s\n" "${key}" "******** (hidden - pass --show-password to reveal)"
+        else
+            printf "%-15s : %s\n" "${key}" "${val}"
+        fi
     done
 }
 
@@ -423,17 +472,17 @@ usage() {
     echo "Usage: pingdart-vault <command> [options]"
     echo ""
     echo "Commands:"
-    echo "  view [pin] [vault_path]     Decrypt and inspect vault credentials (prompts for PIN if omitted)"
-    echo "  verify [pin] [vault_path]   Test PIN validity and HMAC integrity against vault"
-    echo "  rotate [vault_path]         Rotate password and/or Security PIN safely"
-    echo "  create <email> <user> <pass> <pin> [vault_path]   (Internal helper)"
+    echo "  view [pin] [vault_path] [--show-password]   Decrypt and inspect vault credentials (masks password by default)"
+    echo "  verify [pin] [vault_path]                   Test PIN/passphrase validity and HMAC envelope integrity"
+    echo "  rotate [vault_path]                         Rotate password and/or Security PIN safely"
+    echo "  create <email> <user> <pass> <pin> [path]   (Internal helper)"
     exit 1
 }
 
 ACTION="${1:-}"
 case "${ACTION}" in
     view)
-        cmd_view "${2:-}" "${3:-}"
+        cmd_view "${@:2}"
         ;;
     verify)
         cmd_verify "${2:-}" "${3:-}"
