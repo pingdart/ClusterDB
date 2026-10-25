@@ -68,7 +68,16 @@ if [ -d "${DATA_DIR}/data" ]; then
     tar -czf "${BACKUP_ARCHIVE}" -C "${DATA_DIR}" data 2>/dev/null || true
     chown pingdart:pingdart "${BACKUP_ARCHIVE}" 2>/dev/null || true
     chmod 0600 "${BACKUP_ARCHIVE}" 2>/dev/null || true
-    echo "Consistent database snapshot saved: ${BACKUP_ARCHIVE}"
+    
+    # Verify archive integrity
+    if ! tar -tzf "${BACKUP_ARCHIVE}" >/dev/null 2>&1; then
+        echo -e "${RED}[FATAL] Snapshot creation failed or produced corrupt archive! Aborting upgrade.${NC}"
+        if [ "${WAS_RUNNING}" -eq 1 ]; then
+            systemctl start pingdartdb.service || true
+        fi
+        exit 1
+    fi
+    echo "Consistent database snapshot verified: ${BACKUP_ARCHIVE}"
 fi
 
 # 4. Backup Existing Binaries
@@ -126,13 +135,21 @@ else
         echo "Restored previous pingdart CLI binary."
     fi
     
-    # 2. Restore Database Data & Schema from Snapshot
+    # 2. Restore Database Data & Schema safely (Isolate failed state rather than deleting)
     if [ -f "${BACKUP_ARCHIVE}" ]; then
-        echo "Restoring database data and schema catalog from pre-upgrade snapshot..."
-        rm -rf "${DATA_DIR}/data"
-        tar -xzf "${BACKUP_ARCHIVE}" -C "${DATA_DIR}"
-        chown -R pingdart:pingdart "${DATA_DIR}/data" 2>/dev/null || true
-        chmod -R 0700 "${DATA_DIR}/data" 2>/dev/null || true
+        if tar -tzf "${BACKUP_ARCHIVE}" >/dev/null 2>&1; then
+            FAILED_DATA_DIR="${DATA_DIR}/data_failed_upgrade_${TIMESTAMP}"
+            if [ -d "${DATA_DIR}/data" ]; then
+                echo "Preserving failed-upgrade state to ${FAILED_DATA_DIR} for post-mortem analysis..."
+                mv "${DATA_DIR}/data" "${FAILED_DATA_DIR}"
+            fi
+            echo "Restoring database catalog and WAL from pre-upgrade snapshot..."
+            tar -xzf "${BACKUP_ARCHIVE}" -C "${DATA_DIR}"
+            chown -R pingdart:pingdart "${DATA_DIR}/data" 2>/dev/null || true
+            chmod -R 0700 "${DATA_DIR}/data" 2>/dev/null || true
+        else
+            echo -e "${RED}[ERROR] Backup archive corrupted. Active data directory untouched.${NC}"
+        fi
     fi
     
     systemctl start pingdartdb.service || true

@@ -123,7 +123,11 @@ async fn main() -> Result<()> {
     let _ = db.set("_users", &admin_alias.username, &admin_alias);
 
     // Start HTTP API Gateway with clustering support
-    server::start_server(db, port, node_id, join_seed).await?;
+    server::start_server(db.clone(), port, node_id, join_seed).await?;
+
+    info!("Flushing storage engine dirty pages and WAL logs to disk...");
+    let flushed_bytes = db.flush()?;
+    info!("Successfully flushed {} bytes to disk. PingDart Core shut down cleanly.", flushed_bytes);
 
     Ok(())
 }

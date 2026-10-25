@@ -9,4 +9,6 @@ __pycache__/
 /backups/*
 !/backups/.gitkeep
 pingdart_backups*
+/dist/
+*.sha256
 
