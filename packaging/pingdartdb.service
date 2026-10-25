@@ -1,0 +1,45 @@
+[Unit]
+Description=PingDart AI-Native Distributed Database Server
+Documentation=https://github.com/pingdart/ClusterDB
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pingdart
+Group=pingdart
+WorkingDirectory=/var/lib/pingdartdb
+
+# Primary server execution command
+ExecStart=/usr/local/bin/pingdart-core --config /etc/pingdartdb/config.toml
+
+# Process restart on abnormal exit
+Restart=on-failure
+RestartSec=3s
+
+# Resource limits for high-throughput database workloads
+LimitNOFILE=65536
+LimitNPROC=4096
+LimitMEMLOCK=infinity
+TasksMax=infinity
+
+# Output logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pingdartdb
+
+# Production Security & Linux Sandbox Hardening
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=false
+ReadWritePaths=/var/lib/pingdartdb /var/log/pingdartdb
+
+[Install]
+WantedBy=multi-user.target

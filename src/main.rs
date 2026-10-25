@@ -67,6 +67,36 @@ async fn main() -> Result<()> {
                     i += 1;
                 }
             }
+            "--config" | "-c" => {
+                if i + 1 < args.len() {
+                    let config_path = &args[i + 1];
+                    if let Ok(content) = std::fs::read_to_string(config_path) {
+                        if let Ok(val) = content.parse::<toml::Value>() {
+                            if let Some(server) = val.get("server") {
+                                if let Some(p) = server.get("port").and_then(|v| v.as_integer()) {
+                                    port = p as u16;
+                                }
+                                if let Some(d) = server.get("data_dir").and_then(|v| v.as_str()) {
+                                    data_dir = d.to_string();
+                                }
+                            }
+                            if let Some(cluster) = val.get("cluster") {
+                                if let Some(n) = cluster.get("node_id").and_then(|v| v.as_str()) {
+                                    if !n.is_empty() {
+                                        node_id = Some(n.to_string());
+                                    }
+                                }
+                                if let Some(j) = cluster.get("join_seed").and_then(|v| v.as_str()) {
+                                    if !j.is_empty() {
+                                        join_seed = Some(j.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    i += 1;
+                }
+            }
             _ => {}
         }
         i += 1;

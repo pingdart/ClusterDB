@@ -1,0 +1,69 @@
+# ==============================================================================
+# PingDartDB Configuration Template
+# Default Location: /etc/pingdartdb/config.toml
+# ==============================================================================
+
+[server]
+# Network interface to bind (127.0.0.1 for local-only, 0.0.0.0 for public/mesh)
+host = "127.0.0.1"
+
+# Primary HTTP API Gateway & Admin Console Port
+port = 4650
+
+# PostgreSQL Wire Protocol Port (Optional standard PG compatibility)
+pgwire_port = 5433
+
+# Storage engine data directory (requires read/write permissions by 'pingdart' user)
+data_dir = "/var/lib/pingdartdb/data"
+
+# Log files directory
+log_dir = "/var/log/pingdartdb"
+
+# Log verbosity level: "trace", "debug", "info", "warn", "error"
+log_level = "info"
+
+[cluster]
+# Unique identifier for this cluster node
+node_id = "node-primary"
+
+# Seed node connection string for cluster join (leave blank for standalone leader)
+join_seed = ""
+
+# Raft consensus heartbeat interval in milliseconds
+heartbeat_interval_ms = 150
+
+[security]
+# Enforce authentication for all query and administrative endpoints
+require_auth = true
+
+# Token / JWT signing secret key (auto-generated if empty)
+jwt_secret = ""
+
+# Rate limiting: max requests per minute per IP (0 = unlimited)
+rate_limit_per_minute = 12000
+
+# Default allowed client IP mask ("%" allows any valid IP with correct credentials)
+default_allowed_ip = "%"
+
+[storage]
+# Storage Buffer Pool memory size in megabytes
+buffer_pool_size_mb = 256
+
+# Write-Ahead Logging (WAL) for ACID crash-recovery guarantees
+wal_enabled = true
+
+# Automatic background checkpoint interval in seconds
+checkpoint_interval_seconds = 300
+
+# MVCC automatic dead tuple vacuum interval in seconds
+vacuum_interval_seconds = 600
+
+[analytics]
+# Columnar OLAP engine compression: "zstd", "lz4", "none"
+compression = "zstd"
+
+# Vector HNSW Index M (Max outgoing links per node)
+hnsw_m = 16
+
+# Vector HNSW Index efConstruction (Size of dynamic candidate list)
+hnsw_ef_construction = 100
