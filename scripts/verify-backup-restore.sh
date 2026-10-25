@@ -11,9 +11,20 @@ PORT="${PINGDART_PORT:-4650}"
 BASE_URL="http://${HOST}:${PORT}"
 USER="${PINGDART_USER:-ravi80181}"
 PASS="${PINGDART_PASSWORD:-RavindraChinnu12#}"
-TEST_DB="_sandbox_verify_$(date +%s)"
+TEST_DB="_sandbox_verify_$(date +%s)_$RANDOM"
 TEST_TABLE="records"
-BACKUP_FILE="/tmp/pingdart_verify_$(date +%s).pb"
+BACKUP_FILE="/tmp/pingdart_verify_$(date +%s)_$RANDOM.pb"
+TOKEN=""
+
+cleanup() {
+    rm -f "${BACKUP_FILE}" 2>/dev/null || true
+    if [ -n "${TOKEN}" ] && [ -n "${TEST_DB}" ]; then
+        curl -s -X POST "${BASE_URL}/query" \
+            -H "Content-Type: application/json" \
+            -d "{\"token\":\"${TOKEN}\",\"query\":\"DROP DATABASE ${TEST_DB};\"}" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup EXIT INT TERM
 
 echo "=== PingDartDB Isolated Backup & Restore Integrity Probe ==="
 echo "Target Node : ${BASE_URL}"
