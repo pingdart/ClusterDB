@@ -7,8 +7,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="0.5.0"
-ARCH=$(uname -m)
+VERSION="${PINGDART_VERSION:-0.5.0}"
+ARCH="${PINGDART_ARCH:-$(uname -m)}"
 DIST_DIR="${SCRIPT_DIR}/dist"
 BUNDLE_NAME="pingdartdb-v${VERSION}-linux-${ARCH}"
 BUNDLE_DIR="${DIST_DIR}/${BUNDLE_NAME}"
@@ -16,8 +16,10 @@ BUNDLE_DIR="${DIST_DIR}/${BUNDLE_NAME}"
 echo "Building PingDartDB Release Bundle: ${BUNDLE_NAME}"
 cd "${SCRIPT_DIR}"
 
-# 1. Compile Release Binaries
-cargo build --release --bin pingdart-core --bin pingdart
+# 1. Compile Release Binaries if not present
+if [ ! -f "${SCRIPT_DIR}/target/release/pingdart-core" ] || [ ! -f "${SCRIPT_DIR}/target/release/pingdart" ]; then
+    cargo build --release --bin pingdart-core --bin pingdart
+fi
 
 # 2. Stage Bundle Structure
 rm -rf "${BUNDLE_DIR}"

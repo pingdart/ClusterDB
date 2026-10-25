@@ -17,12 +17,14 @@ BACKUP_FILE="/tmp/pingdart_verify_$(date +%s)_$RANDOM.pb"
 TOKEN=""
 
 cleanup() {
+    local exit_code=$?
     rm -f "${BACKUP_FILE}" 2>/dev/null || true
     if [ -n "${TOKEN}" ] && [ -n "${TEST_DB}" ]; then
         curl -s -X POST "${BASE_URL}/query" \
             -H "Content-Type: application/json" \
             -d "{\"token\":\"${TOKEN}\",\"query\":\"DROP DATABASE ${TEST_DB};\"}" >/dev/null 2>&1 || true
     fi
+    exit ${exit_code}
 }
 trap cleanup EXIT INT TERM
 

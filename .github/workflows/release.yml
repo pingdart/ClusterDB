@@ -56,7 +56,7 @@ jobs:
           mkdir -p target/release
           cp target/aarch64-unknown-linux-gnu/release/pingdart-core target/release/
           cp target/aarch64-unknown-linux-gnu/release/pingdart target/release/
-          ./packaging/build_release_bundle.sh
+          PINGDART_ARCH=aarch64 ./packaging/build_release_bundle.sh
 
       - name: Upload Release Assets to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -65,5 +65,7 @@ jobs:
             dist/*.tar.gz
             dist/*.sha256
           prerelease: true
+          name: "PingDartDB ${{ github.ref_name }}"
+          body_path: RELEASE_NOTES.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
