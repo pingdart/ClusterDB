@@ -22,6 +22,8 @@ pub mod migration;
 pub mod wal;
 pub mod mvcc;
 pub mod pgwire;
+pub mod realtime;
+pub mod api;
 use anyhow::Result;
 use tracing::info;
 

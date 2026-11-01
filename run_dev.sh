@@ -10,8 +10,8 @@ pkill -f "target/debug/pingdart-core" 2>/dev/null || true
 sleep 0.5
 
 echo "⚡ Starting PingDart DB Dev Server with Auto-Restart..."
-echo "📂 Watching: src/ (Rust files + dashboard.html), Cargo.toml"
-echo "🌐 UI Available at: http://127.0.0.1:4650/database"
+echo "📂 Watching: src/ (Rust files), Cargo.toml"
+echo "🌐 API Available at: http://127.0.0.1:4650"
 echo ""
 
 # Prefer cargo watch if installed, fallback to nodemon

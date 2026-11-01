@@ -7,7 +7,7 @@ use axum::{
     Json,
     extract::{Path, Query, State},
     http::{header, HeaderMap, StatusCode},
-    response::{Html, IntoResponse},
+    response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -215,27 +215,13 @@ pub struct AppState {
     pub tracer: Arc<crate::observability::DistributedTracer>,
     pub slow_query_logger: Arc<crate::observability::SlowQueryLogger>,
     pub migration_manager: Arc<crate::migration::MigrationManager>,
+    pub realtime_hub: Arc<crate::realtime::RealtimeHub>,
 }
-
-const DASHBOARD_HTML: &str = include_str!("ui/dashboard.html");
-
-async fn handle_database_ui() -> impl IntoResponse {
-    Html(DASHBOARD_HTML)
-}
-
-async fn handle_status(headers: HeaderMap) -> impl IntoResponse {
-    if let Some(accept) = headers.get(header::ACCEPT) {
-        if let Ok(accept_str) = accept.to_str() {
-            if accept_str.contains("text/html") {
-                return Html(DASHBOARD_HTML).into_response();
-            }
-        }
-    }
+async fn handle_status() -> impl IntoResponse {
     (StatusCode::OK, Json(serde_json::json!({
         "status": "online",
         "engine": "PingDart AI-Native Core Engine",
         "version": "0.5.0",
-        "ui_url": "/database",
         "capabilities": [
             "SQL Engine",
             "Document Store",
@@ -330,6 +316,7 @@ pub async fn start_server(
     let tracer = Arc::new(crate::observability::DistributedTracer::new(5000));
     let slow_query_logger = Arc::new(crate::observability::SlowQueryLogger::new(50.0, 1000));
     let migration_manager = executor.migration_manager.clone();
+    let realtime_hub = crate::realtime::RealtimeHub::new(executor.cdc_streamer.clone(), storage.clone());
 
     let state = AppState {
         executor,
@@ -345,15 +332,11 @@ pub async fn start_server(
         tracer,
         slow_query_logger,
         migration_manager,
+        realtime_hub,
     };
 
     let app = Router::new()
         .route("/", get(handle_status))
-        .route("/index.html", get(handle_database_ui))
-        .route("/database", get(handle_database_ui))
-        .route("/database/", get(handle_database_ui))
-        .route("/console", get(handle_database_ui))
-        .route("/admin", get(handle_database_ui))
         .route("/login", post(handle_login))
         .route("/query", post(handle_query))
         .route("/document/query", post(handle_document_query))
@@ -415,6 +398,16 @@ pub async fn start_server(
         .route("/security/role/list", get(handle_role_list))
         .route("/security/encrypt", post(handle_security_encrypt))
         .route("/security/decrypt", post(handle_security_decrypt))
+        // Realtime WebSocket Endpoints (Firebase-like)
+        .route("/v1/realtime", get(handle_realtime_ws_route))
+        .route("/ws", get(handle_realtime_ws_route))
+        // PRD-compliant Database & REST CRUD APIs (/v1/data, /v1/schema, /v1/query)
+        .merge(crate::api::router())
+        // Storage Engine (HBSE) Integration Endpoints
+        .route("/v1/storage/upload", post(handle_storage_upload))
+        .route("/v1/storage/files", get(handle_storage_list))
+        .route("/v1/storage/files/:id", get(handle_storage_get).delete(handle_storage_delete))
+        .route("/v1/storage/files/:id/download", get(handle_storage_download))
         .with_state(state);
 
     let addr = format!("0.0.0.0:{}", port);
@@ -2129,5 +2122,561 @@ pub async fn handle_security_decrypt(
         })),
     }
 }
+
+// ==========================================
+// REALTIME WEBSOCKET HANDLERS
+// ==========================================
+
+pub async fn handle_realtime_ws_route(
+    ws: axum::extract::ws::WebSocketUpgrade,
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    crate::realtime::handle_realtime_ws(ws, State(state.realtime_hub.clone()), Query(params)).await
+}
+
+// ==========================================
+// FIREBASE-LIKE REST DATA CRUD HANDLERS
+// ==========================================
+
+#[allow(dead_code)]
+#[derive(Deserialize, Debug)]
+pub struct RestDataListQuery {
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+    pub database: Option<String>,
+    #[serde(flatten)]
+    pub filters: HashMap<String, String>,
+}
+
+#[allow(dead_code)]
+pub async fn handle_rest_data_insert(
+    Path(table): Path<String>,
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+    Json(mut payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let db = params.get("database").map(|s| s.as_str()).unwrap_or("default");
+    let full_table_name = format!("{}_{}", db, table);
+
+    // Extract or generate ID
+    let id = if let Some(id_val) = payload.get("id").and_then(|v| v.as_str()) {
+        id_val.to_string()
+    } else if let Some(id_val) = payload.get("_id").and_then(|v| v.as_str()) {
+        id_val.to_string()
+    } else {
+        Uuid::new_v4().to_string()
+    };
+
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert("id".to_string(), serde_json::Value::String(id.clone()));
+    }
+
+    // Convert to RowData columns
+    let mut columns = HashMap::new();
+    if let Some(obj) = payload.as_object() {
+        for (k, v) in obj {
+            columns.insert(k.clone(), if let Some(s) = v.as_str() { s.to_string() } else { v.to_string() });
+        }
+    }
+
+    let now_ts = chrono::Utc::now().timestamp_millis() as u64;
+    let row = crate::exec::RowData {
+        _id: id.clone(),
+        _version: 1,
+        _created_at: now_ts,
+        _updated_at: now_ts,
+        _deleted: false,
+        _owner: None,
+        _tenant: Some("default".to_string()),
+        _checksum: None,
+        _page_id: None,
+        _transaction_id: None,
+        columns,
+    };
+
+    if let Err(e) = state.storage.set(&full_table_name, &id, &row) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+            "status": "error",
+            "error": format!("Failed to store row: {}", e)
+        })));
+    }
+
+    // Emit CDC event -> automatically caught by RealtimeHub and pushed to subscribers
+    let _ = state.executor.cdc_streamer.emit(
+        db,
+        &table,
+        "INSERT",
+        &id,
+        None,
+        Some(payload.clone()),
+    );
+
+    (StatusCode::CREATED, Json(serde_json::json!({
+        "status": "success",
+        "id": id,
+        "record": payload
+    })))
+}
+
+#[allow(dead_code)]
+pub async fn handle_rest_data_list(
+    Path(table): Path<String>,
+    State(state): State<AppState>,
+    Query(query): Query<RestDataListQuery>,
+) -> impl IntoResponse {
+    let db = query.database.as_deref().unwrap_or("default");
+    let full_table_name = format!("{}_{}", db, table);
+    let limit = query.limit.unwrap_or(50).min(500);
+    let offset = query.offset.unwrap_or(0);
+
+    let mut results = Vec::new();
+    if let Ok(tree) = state.storage.db().open_tree(&full_table_name) {
+        let mut skipped = 0;
+        for item in tree.iter() {
+            if let Ok((key_bytes, val_bytes)) = item {
+                if let Ok(row) = crate::exec::RowData::try_from_bytes(&val_bytes) {
+                    if row._deleted {
+                        continue;
+                    }
+                    let key_str = String::from_utf8_lossy(&key_bytes).to_string();
+                    let mut map = serde_json::Map::new();
+                    map.insert("id".to_string(), serde_json::Value::String(if row._id.is_empty() { key_str } else { row._id }));
+                    for (k, v) in row.columns {
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
+                            map.insert(k, parsed);
+                        } else {
+                            map.insert(k, serde_json::Value::String(v));
+                        }
+                    }
+
+                    // Apply filters
+                    let mut matches = true;
+                    for (fk, fv) in &query.filters {
+                        if fk == "limit" || fk == "offset" || fk == "database" {
+                            continue;
+                        }
+                        if let Some(val) = map.get(fk) {
+                            let s = val.as_str().map(|s| s.to_string()).unwrap_or_else(|| val.to_string());
+                            if &s != fv {
+                                matches = false; break;
+                            }
+                        } else {
+                            matches = false; break;
+                        }
+                    }
+
+                    if !matches {
+                        continue;
+                    }
+
+                    if skipped < offset {
+                        skipped += 1;
+                        continue;
+                    }
+
+                    results.push(serde_json::Value::Object(map));
+                    if results.len() >= limit {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "success",
+        "table": table,
+        "count": results.len(),
+        "data": results
+    })))
+}
+
+#[allow(dead_code)]
+pub async fn handle_rest_data_get(
+    Path((table, id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let db = params.get("database").map(|s| s.as_str()).unwrap_or("default");
+    let full_table_name = format!("{}_{}", db, table);
+
+    if let Ok(Some(row)) = state.storage.get::<crate::exec::RowData>(&full_table_name, &id) {
+        if !row._deleted {
+            let mut map = serde_json::Map::new();
+            map.insert("id".to_string(), serde_json::Value::String(if row._id.is_empty() { id } else { row._id }));
+            for (k, v) in row.columns {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
+                    map.insert(k, parsed);
+                } else {
+                    map.insert(k, serde_json::Value::String(v));
+                }
+            }
+            return (StatusCode::OK, Json(serde_json::json!({
+                "status": "success",
+                "data": map
+            })));
+        }
+    }
+
+    (StatusCode::NOT_FOUND, Json(serde_json::json!({
+        "status": "error",
+        "error": format!("Record '{}' not found in table '{}'", id, table)
+    })))
+}
+
+#[allow(dead_code)]
+pub async fn handle_rest_data_update(
+    Path((table, id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+    Json(payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let db = params.get("database").map(|s| s.as_str()).unwrap_or("default");
+    let full_table_name = format!("{}_{}", db, table);
+
+    let mut row = match state.storage.get::<crate::exec::RowData>(&full_table_name, &id) {
+        Ok(Some(r)) if !r._deleted => r,
+        _ => return (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "status": "error",
+            "error": format!("Record '{}' not found in table '{}'", id, table)
+        }))),
+    };
+
+    let before_json = serde_json::to_value(&row.columns).unwrap_or_default();
+
+    if let Some(obj) = payload.as_object() {
+        for (k, v) in obj {
+            row.columns.insert(k.clone(), if let Some(s) = v.as_str() { s.to_string() } else { v.to_string() });
+        }
+    }
+    row._updated_at = chrono::Utc::now().timestamp_millis() as u64;
+    row._version += 1;
+
+    let after_json = serde_json::to_value(&row.columns).unwrap_or_default();
+
+    if let Err(e) = state.storage.set(&full_table_name, &id, &row) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+            "status": "error",
+            "error": format!("Failed to update row: {}", e)
+        })));
+    }
+
+    // Emit CDC update
+    let _ = state.executor.cdc_streamer.emit(
+        db,
+        &table,
+        "UPDATE",
+        &id,
+        Some(before_json),
+        Some(after_json.clone()),
+    );
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "success",
+        "id": id,
+        "record": after_json
+    })))
+}
+
+#[allow(dead_code)]
+pub async fn handle_rest_data_delete(
+    Path((table, id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let db = params.get("database").map(|s| s.as_str()).unwrap_or("default");
+    let full_table_name = format!("{}_{}", db, table);
+
+    let row = match state.storage.get::<crate::exec::RowData>(&full_table_name, &id) {
+        Ok(Some(r)) => r,
+        _ => return (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "status": "error",
+            "error": format!("Record '{}' not found in table '{}'", id, table)
+        }))),
+    };
+
+    let old_json = serde_json::to_value(&row.columns).unwrap_or_default();
+    let _ = state.storage.delete(&full_table_name, &id);
+
+    // Emit CDC delete
+    let _ = state.executor.cdc_streamer.emit(
+        db,
+        &table,
+        "DELETE",
+        &id,
+        Some(old_json),
+        None,
+    );
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "success",
+        "deleted_id": id
+    })))
+}
+
+// ==========================================
+// STORAGE (HBSE) INTEGRATION HANDLERS
+// ==========================================
+
+pub async fn handle_storage_upload(
+    State(state): State<AppState>,
+    mut multipart: axum::extract::Multipart,
+) -> impl IntoResponse {
+    let hbse_base = std::env::var("HBSE_URL").unwrap_or_else(|_| "http://127.0.0.1:3221".to_string());
+    let file_id = Uuid::new_v4().to_string();
+    let mut filename = "unnamed.dat".to_string();
+    let mut content_type = "application/octet-stream".to_string();
+    let mut file_bytes = Vec::new();
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field.name().unwrap_or_default().to_string();
+        if name == "file" || name == "data" {
+            if let Some(f_name) = field.file_name() {
+                filename = f_name.to_string();
+            }
+            if let Some(c_type) = field.content_type() {
+                content_type = c_type.to_string();
+            }
+            if let Ok(bytes) = field.bytes().await {
+                file_bytes = bytes.to_vec();
+            }
+            break;
+        }
+    }
+
+    if file_bytes.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "status": "error",
+            "error": "Missing or empty 'file' field in multipart body"
+        })));
+    }
+
+    let file_size = file_bytes.len() as u64;
+
+    // Forward to HBSE backend (port 3221)
+    let client = reqwest::Client::new();
+    let hbse_upload_url = format!("{}/v1/files", hbse_base);
+    let part = reqwest::multipart::Part::bytes(file_bytes.clone())
+        .file_name(filename.clone())
+        .mime_str(&content_type)
+        .unwrap_or_else(|_| reqwest::multipart::Part::bytes(file_bytes.clone()));
+
+    let form = reqwest::multipart::Form::new().part("file", part);
+    let mut hbse_file_id = file_id.clone();
+    let mut physical_size = file_size;
+    let mut compression_ratio = 1.0;
+
+    if let Ok(resp) = client.post(&hbse_upload_url).multipart(form).send().await {
+        if resp.status().is_success() {
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                if let Some(hid) = body.get("file_id").and_then(|v| v.as_str()) {
+                    hbse_file_id = hid.to_string();
+                }
+                if let Some(ps) = body.get("physical_size").and_then(|v| v.as_u64()) {
+                    physical_size = ps;
+                }
+                if let Some(cr) = body.get("compression_ratio").and_then(|v| v.as_f64()) {
+                    compression_ratio = cr;
+                }
+            }
+        }
+    }
+
+    // Record file metadata in PingDartDB table `_storage_files`
+    let now_ts = chrono::Utc::now().timestamp_millis();
+    let file_meta = serde_json::json!({
+        "id": file_id,
+        "name": filename,
+        "content_type": content_type,
+        "size_bytes": file_size,
+        "physical_size_bytes": physical_size,
+        "compression_ratio": compression_ratio,
+        "hbse_file_id": hbse_file_id,
+        "uploaded_at": now_ts,
+        "download_url": format!("/v1/storage/files/{}/download", file_id)
+    });
+
+    let mut columns = HashMap::new();
+    if let Some(obj) = file_meta.as_object() {
+        for (k, v) in obj {
+            columns.insert(k.clone(), if let Some(s) = v.as_str() { s.to_string() } else { v.to_string() });
+        }
+    }
+
+    let row = crate::exec::RowData {
+        _id: file_id.clone(),
+        _version: 1,
+        _created_at: now_ts as u64,
+        _updated_at: now_ts as u64,
+        _deleted: false,
+        _owner: None,
+        _tenant: Some("default".to_string()),
+        _checksum: None,
+        _page_id: None,
+        _transaction_id: None,
+        columns,
+    };
+
+    let _ = state.storage.set("default__storage_files", &file_id, &row);
+
+    // Emit CDC event on `_storage_files` -> real-time notification to all connected clients!
+    let _ = state.executor.cdc_streamer.emit(
+        "default",
+        "_storage_files",
+        "INSERT",
+        &file_id,
+        None,
+        Some(file_meta.clone()),
+    );
+
+    (StatusCode::CREATED, Json(serde_json::json!({
+        "status": "success",
+        "file_id": file_id,
+        "metadata": file_meta
+    })))
+}
+
+pub async fn handle_storage_list(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let mut files = Vec::new();
+    if let Ok(tree) = state.storage.db().open_tree("default__storage_files") {
+        for item in tree.iter() {
+            if let Ok((key_bytes, val_bytes)) = item {
+                if let Ok(row) = crate::exec::RowData::try_from_bytes(&val_bytes) {
+                    if !row._deleted {
+                        let mut map = serde_json::Map::new();
+                        let key_str = String::from_utf8_lossy(&key_bytes).to_string();
+                        map.insert("id".to_string(), serde_json::Value::String(if row._id.is_empty() { key_str } else { row._id }));
+                        for (k, v) in row.columns {
+                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
+                                map.insert(k, parsed);
+                            } else {
+                                map.insert(k, serde_json::Value::String(v));
+                            }
+                        }
+                        files.push(serde_json::Value::Object(map));
+                    }
+                }
+            }
+        }
+    }
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "success",
+        "count": files.len(),
+        "files": files
+    })))
+}
+
+pub async fn handle_storage_get(
+    Path(file_id): Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    if let Ok(Some(row)) = state.storage.get::<crate::exec::RowData>("default__storage_files", &file_id) {
+        if !row._deleted {
+            let mut map = serde_json::Map::new();
+            map.insert("id".to_string(), serde_json::Value::String(if row._id.is_empty() { file_id } else { row._id }));
+            for (k, v) in row.columns {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&v) {
+                    map.insert(k, parsed);
+                } else {
+                    map.insert(k, serde_json::Value::String(v));
+                }
+            }
+            return (StatusCode::OK, Json(serde_json::json!({
+                "status": "success",
+                "file": map
+            })));
+        }
+    }
+
+    (StatusCode::NOT_FOUND, Json(serde_json::json!({
+        "status": "error",
+        "error": format!("File '{}' not found", file_id)
+    })))
+}
+
+pub async fn handle_storage_download(
+    Path(file_id): Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let hbse_base = std::env::var("HBSE_URL").unwrap_or_else(|_| "http://127.0.0.1:3221".to_string());
+    let mut hbse_id = file_id.clone();
+    let mut filename = "download.dat".to_string();
+    let mut content_type = "application/octet-stream".to_string();
+
+    if let Ok(Some(row)) = state.storage.get::<crate::exec::RowData>("default__storage_files", &file_id) {
+        if let Some(h) = row.columns.get("hbse_file_id") {
+            hbse_id = h.clone();
+        }
+        if let Some(n) = row.columns.get("name") {
+            filename = n.clone();
+        }
+        if let Some(c) = row.columns.get("content_type") {
+            content_type = c.clone();
+        }
+    }
+
+    // Stream download from HBSE
+    let client = reqwest::Client::new();
+    let download_url = format!("{}/v1/files/{}/download", hbse_base, hbse_id);
+
+    match client.get(&download_url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let bytes = resp.bytes().await.unwrap_or_default();
+            let mut headers = HeaderMap::new();
+            headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap_or(header::HeaderValue::from_static("application/octet-stream")));
+            headers.insert(
+                header::CONTENT_DISPOSITION,
+                format!("inline; filename=\"{}\"", filename).parse().unwrap_or(header::HeaderValue::from_static("inline")),
+            );
+            (StatusCode::OK, headers, bytes).into_response()
+        }
+        _ => (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "status": "error",
+            "error": format!("File content could not be retrieved from HBSE storage engine")
+        }))).into_response(),
+    }
+}
+
+pub async fn handle_storage_delete(
+    Path(file_id): Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let hbse_base = std::env::var("HBSE_URL").unwrap_or_else(|_| "http://127.0.0.1:3221".to_string());
+    let mut hbse_id = file_id.clone();
+
+    if let Ok(Some(row)) = state.storage.get::<crate::exec::RowData>("default__storage_files", &file_id) {
+        if let Some(h) = row.columns.get("hbse_file_id") {
+            hbse_id = h.clone();
+        }
+    }
+
+    // Remove from HBSE
+    let client = reqwest::Client::new();
+    let delete_url = format!("{}/v1/files/{}", hbse_base, hbse_id);
+    let _ = client.delete(&delete_url).send().await;
+
+    // Delete from PingDartDB
+    let _ = state.storage.delete("default__storage_files", &file_id);
+
+    // Emit CDC DELETE event
+    let _ = state.executor.cdc_streamer.emit(
+        "default",
+        "_storage_files",
+        "DELETE",
+        &file_id,
+        Some(serde_json::json!({ "id": file_id })),
+        None,
+    );
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "success",
+        "deleted_file_id": file_id
+    })))
+}
+
 
 

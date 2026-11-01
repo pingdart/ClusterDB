@@ -1,0 +1,233 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PingDartDB Core REST & SQL API",
+    "version": "0.5.0",
+    "description": "Production API specification for PingDartDB AI-Native Distributed Database Engine."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4650",
+      "description": "Local Database Daemon"
+    }
+  ],
+  "paths": {
+    "/login": {
+      "post": {
+        "summary": "Login as Administrator",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "example": "ravi80181"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "RavindraChinnu12#"
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful login returning bearer token"
+          }
+        }
+      }
+    },
+    "/query": {
+      "post": {
+        "summary": "Execute SQL Query",
+        "tags": [
+          "SQL Engine"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "example": "SHOW DATABASES;"
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "database": {
+                    "type": "string",
+                    "example": "default"
+                  }
+                },
+                "required": [
+                  "query",
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query results"
+          }
+        }
+      }
+    },
+    "/document/query": {
+      "post": {
+        "summary": "Execute Document Filter Query",
+        "tags": [
+          "Document Store"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "database": {
+                    "type": "string",
+                    "example": "default"
+                  },
+                  "collection": {
+                    "type": "string",
+                    "example": "users"
+                  },
+                  "where": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string"
+                        },
+                        "operator": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "example": 10
+                  }
+                },
+                "required": [
+                  "token",
+                  "collection"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Matched documents"
+          }
+        }
+      }
+    },
+    "/vector/search": {
+      "post": {
+        "summary": "HNSW Vector Proximity Search",
+        "tags": [
+          "Vector Engine"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "database": {
+                    "type": "string"
+                  },
+                  "table": {
+                    "type": "string"
+                  },
+                  "column": {
+                    "type": "string"
+                  },
+                  "vector": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "top_k": {
+                    "type": "integer",
+                    "example": 5
+                  }
+                },
+                "required": [
+                  "token",
+                  "table",
+                  "column",
+                  "vector"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vector nearest neighbors"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Prometheus Metrics",
+        "tags": [
+          "Observability"
+        ],
+        "responses": {
+          "200": {
+            "description": "Prometheus text output"
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "summary": "Readiness Probe",
+        "tags": [
+          "Observability"
+        ],
+        "responses": {
+          "200": {
+            "description": "Cluster and storage ready status"
+          }
+        }
+      }
+    }
+  }
+}

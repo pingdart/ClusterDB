@@ -59,8 +59,9 @@ impl ObjectStore for LocalFsStore {
                     if path.is_dir() {
                         stack.push(path);
                     } else if let Ok(rel) = path.strip_prefix(&self.root_dir) {
-                        let key = rel.to_string_lossy().to_string();
-                        if key.starts_with(prefix) {
+                        let key = rel.to_string_lossy().replace('\\', "/");
+                        let norm_prefix = prefix.replace('\\', "/");
+                        if key.starts_with(&norm_prefix) {
                             results.push(key);
                         }
                     }

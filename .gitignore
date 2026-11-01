@@ -11,4 +11,8 @@ __pycache__/
 pingdart_backups*
 /dist/
 *.sha256
-
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+test_data_*

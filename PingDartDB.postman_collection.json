@@ -1,0 +1,3470 @@
+{
+  "info": {
+    "_postman_id": "c8942bfa-9481-4bb2-8924-f582299a9bce",
+    "name": "PingDartDB v0.5.0 Enterprise API Collection",
+    "description": "Official comprehensive Postman Collection for PingDartDB AI-Native Distributed Database Engine. Covers Universal SQL, DDL Tables/Columns, User Permissions, Document API, REST CRUD, HNSW Vectors, BM25 Hybrid Search, AI Cognitive Memory, Labeled Graph, Multi-Tenant Governance, Enterprise Security & RBAC, Universal Migration, Backup/Restore & PITR, Observability, and Storage Engine.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4650",
+      "type": "string",
+      "description": "PingDartDB Server HTTP endpoint"
+    },
+    {
+      "key": "wsUrl",
+      "value": "ws://localhost:4650",
+      "type": "string",
+      "description": "PingDartDB Realtime WebSocket endpoint"
+    },
+    {
+      "key": "username",
+      "value": "ravi80181",
+      "type": "string",
+      "description": "Database root administrator username"
+    },
+    {
+      "key": "password",
+      "value": "RavindraChinnu12#",
+      "type": "string",
+      "description": "Database root administrator password"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string",
+      "description": "Active session token auto-captured by /login"
+    },
+    {
+      "key": "database",
+      "value": "default",
+      "type": "string",
+      "description": "Active database scope"
+    },
+    {
+      "key": "tenantId",
+      "value": "default",
+      "type": "string",
+      "description": "Active multi-tenant context ID"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication & Session",
+      "description": "Login and token generation for root administrator and provisioned users.",
+      "item": [
+        {
+          "name": "1.1 Login as Root Admin (Auto-saves authToken)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "Authenticates with root admin credentials. The Postman test script automatically stores the returned session token into the collection variable `authToken` for subsequent requests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Status is success\", function () {",
+                  "    pm.expect(jsonData.status).to.eql(\"success\");",
+                  "});",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"authToken\", jsonData.token);",
+                  "    console.log(\"Auth token updated in collection variables:\", jsonData.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. User Management & Database Permissions",
+      "description": "Manage database user accounts, passwords, allowed IP addresses/hosts, and grant/revoke database permissions.",
+      "item": [
+        {
+          "name": "2.1 Show All Database Users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Lists all database users, host masks, active roles, and assigned permissions.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SHOW USERS;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Create Database User with Password & Host",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Creates a new database user account with password and host permission (e.g. '%' for any host or IP subnet).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"CREATE USER 'app_developer'@'%' PASSWORD 'DeveloperPass2026!';\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Grant Full Database Admin Permissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Grants full administrative permissions on target database to the user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"GRANT ALL ON default TO app_developer;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Grant Read-Only (SELECT) Permissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Grants read-only access (SELECT queries) on target database to the user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"GRANT SELECT ON default TO app_developer;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Grant Read-Write Permissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Grants read and write access (SELECT, INSERT, UPDATE, DELETE) on target database.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"GRANT READWRITE ON default TO app_developer;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.6 Revoke Database Permissions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Revokes permissions on target database from the user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"REVOKE ALL ON default FROM app_developer;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.7 Alter User Password & Allowed Host/IP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Changes user's password or updates allowed IP connection mask.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"ALTER USER app_developer PASSWORD 'UpdatedSecretPass2026!' IP '%';\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.8 Drop Database User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Deletes a database user account.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"DROP USER app_developer;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. SQL Query Engine & DDL (Any Query API)",
+      "description": "Direct SQL execution engine. Pass ANY valid SQL statement (CREATE DATABASE, CREATE TABLE with columns, SHOW TABLES, INSERT, SELECT, JOINS, ALTER, DROP) directly in the 'query' field.",
+      "item": [
+        {
+          "name": "3.1 Run ANY Custom SQL Query (Universal Template)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Universal SQL Query endpoint: write and run ANY SQL command directly in the 'query' string parameter.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SELECT 'PingDartDB Universal SQL API' as engine, NOW() as current_time;\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Show Databases",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Lists all registered databases in the engine.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SHOW DATABASES;\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 Create Database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Creates a new logical database catalog.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"CREATE DATABASE enterprise_crm;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.4 Show Tables in Database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Lists all tables in the active database along with row count and storage engine type.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SHOW TABLES;\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.5 Create Table with Columns, Constraints & Types",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Creates a structured relational table with custom column data types (INT, STRING, FLOAT, BOOLEAN, TIMESTAMP), AUTO_INCREMENT, PRIMARY KEY, NOT NULL, and DEFAULT constraints.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"CREATE TABLE customers (id INT AUTO_INCREMENT PRIMARY KEY, full_name STRING NOT NULL, email STRING UNIQUE, credit_score INT DEFAULT 700, balance FLOAT DEFAULT 0.0, is_verified BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.6 Insert Rows (DML)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Inserts records into the specified table.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"INSERT INTO customers (full_name, email, credit_score, balance, is_verified) VALUES ('Sarah Connor', 'sarah@resistance.org', 820, 15400.50, true), ('John Connor', 'john@resistance.org', 750, 4200.00, true);\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.7 Select All Columns & Rows",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Selects all columns and rows from table.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SELECT * FROM customers;\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.8 Select with WHERE, ORDER BY, LIMIT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Executes filtered, sorted, and paginated SELECT query.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SELECT id, full_name, email, balance FROM customers WHERE balance > 5000.0 ORDER BY balance DESC LIMIT 10;\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.9 Aggregation & GROUP BY",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Analytical aggregation query using vectorized columnar engine.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SELECT is_verified, COUNT(*) as total_users, AVG(balance) as avg_balance, SUM(balance) as total_balance FROM customers GROUP BY is_verified;\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.10 Explain Query Plan (CBO)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Inspects Cost-Based Optimizer (CBO) plan selection, index usage, and execution timing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"EXPLAIN ANALYZE SELECT * FROM customers WHERE email = 'sarah@resistance.org';\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.11 Drop Table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Drops table and cleans up data, schema, and secondary indexes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"DROP TABLE customers;\",\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.12 Drop Database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "query"
+              ]
+            },
+            "description": "Drops an entire database catalog and all its associated tables.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"DROP DATABASE enterprise_crm;\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.13 PRD REST Query (/v1/query)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "query"
+              ]
+            },
+            "description": "Executes structured query via PRD Section 6.5 REST interface.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SELECT * FROM customers LIMIT 10\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.14 PRD Data Query (/v1/data/query)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/data/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "data",
+                "query"
+              ]
+            },
+            "description": "Executes structured query via alternate data endpoint.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"SELECT * FROM customers WHERE credit_score >= 700\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Document Store API (Firebase / Mongo)",
+      "description": "NoSQL document filtering, geospatial proximity queries, and flexible schema lookups.",
+      "item": [
+        {
+          "name": "4.1 Document Filter Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/document/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "document",
+                "query"
+              ]
+            },
+            "description": "Queries records in a collection using declarative filters.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"collection\": \"customers\",\n  \"where\": [\n    {\n      \"field\": \"is_verified\",\n      \"operator\": \"==\",\n      \"value\": \"true\"\n    }\n  ],\n  \"order_by\": \"id ASC\",\n  \"limit\": 10,\n  \"offset\": 0,\n  \"explain\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Geospatial Proximity Query (near)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/document/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "document",
+                "query"
+              ]
+            },
+            "description": "Finds entities located within radius_km using spatial geohash indexing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"collection\": \"branches\",\n  \"near\": {\n    \"lat\": 37.7749,\n    \"lon\": -122.4194,\n    \"radius_km\": 25\n  },\n  \"limit\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. REST Data CRUD (Directus / Supabase)",
+      "description": "Direct REST table endpoints supporting postgREST-style filtering operators (eq, gt, in, like, etc.).",
+      "item": [
+        {
+          "name": "5.1 List Records (with filters)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/data/:table?database={{database}}&limit=20&offset=0&order=id.desc&select=id,full_name,email,balance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "data",
+                ":table"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": ""
+                },
+                {
+                  "key": "order",
+                  "value": "id.desc",
+                  "description": ""
+                },
+                {
+                  "key": "select",
+                  "value": "id,full_name,email,balance",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                }
+              ]
+            },
+            "description": "Lists rows from table with paging and field projection."
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 Insert Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/data/:table?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "data",
+                ":table"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                }
+              ]
+            },
+            "description": "Inserts a new row or document into the table.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 10,\n  \"full_name\": \"Dana Scully\",\n  \"email\": \"dana@fbi.gov\",\n  \"balance\": 110000,\n  \"is_verified\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 Get Record by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/data/:table/:id?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "data",
+                ":table",
+                ":id"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                },
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "URL parameter for :id"
+                }
+              ]
+            },
+            "description": "Fetches a single row by primary key ID."
+          },
+          "response": []
+        },
+        {
+          "name": "5.4 Update Record (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/data/:table/:id?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "data",
+                ":table",
+                ":id"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                },
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "URL parameter for :id"
+                }
+              ]
+            },
+            "description": "Updates specified columns of a row.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"balance\": 135000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.5 Delete Record",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/data/:table/:id?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "data",
+                ":table",
+                ":id"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                },
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "URL parameter for :id"
+                }
+              ]
+            },
+            "description": "Soft/hard deletes a row by ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Schema & Table Metadata",
+      "description": "Table schema definitions, column listings, and catalog management.",
+      "item": [
+        {
+          "name": "6.1 List All Tables",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/schema/tables?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "schema",
+                "tables"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Returns metadata for all tables in the database."
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 Create Table via Schema API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/schema/tables?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "schema",
+                "tables"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Creates a new schema definition programmatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table_name\": \"products\",\n  \"columns\": [\n    {\n      \"name\": \"id\",\n      \"data_type\": \"INT\",\n      \"primary_key\": true\n    },\n    {\n      \"name\": \"sku\",\n      \"data_type\": \"STRING\",\n      \"nullable\": false\n    },\n    {\n      \"name\": \"title\",\n      \"data_type\": \"STRING\",\n      \"nullable\": false\n    },\n    {\n      \"name\": \"price\",\n      \"data_type\": \"FLOAT\",\n      \"nullable\": false\n    },\n    {\n      \"name\": \"in_stock\",\n      \"data_type\": \"BOOLEAN\",\n      \"default_value\": \"true\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.3 Get Table Schema",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/schema/tables/:table?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "schema",
+                "tables",
+                ":table"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                }
+              ]
+            },
+            "description": "Retrieves column and constraint details for a specific table."
+          },
+          "response": []
+        },
+        {
+          "name": "6.4 Truncate Table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/schema/tables/:table/truncate?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "schema",
+                "tables",
+                ":table",
+                "truncate"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                }
+              ]
+            },
+            "description": "Clears all records in a table while retaining schema definition."
+          },
+          "response": []
+        },
+        {
+          "name": "6.5 Drop Table",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/schema/tables/:table?database={{database}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "schema",
+                "tables",
+                ":table"
+              ],
+              "query": [
+                {
+                  "key": "database",
+                  "value": "{{database}}",
+                  "description": ""
+                }
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "users",
+                  "description": "URL parameter for :table"
+                }
+              ]
+            },
+            "description": "Drops table and associated index files."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Vector Engine & AI Search",
+      "description": "HNSW approximate nearest neighbor search, BM25 full-text indexing, and reciprocal rank fusion hybrid search.",
+      "item": [
+        {
+          "name": "7.1 HNSW Vector Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vector/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vector",
+                "search"
+              ]
+            },
+            "description": "Executes vector cosine/Euclidean distance search over HNSW index.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"table\": \"documents\",\n  \"column\": \"embedding\",\n  \"vector\": [\n    0.034,\n    -0.125,\n    0.442,\n    -0.012,\n    0.771\n  ],\n  \"top_k\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 BM25 Full-Text Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/search/text",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search",
+                "text"
+              ]
+            },
+            "description": "Performs BM25 ranked full-text search.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"table\": \"documents\",\n  \"column\": \"content\",\n  \"query\": \"high-throughput transactional storage\",\n  \"top_k\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.3 Hybrid Search (Vector + BM25)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/search/hybrid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search",
+                "hybrid"
+              ]
+            },
+            "description": "Combines dense vector and sparse lexical results via alpha weighting (0.0 = BM25 only, 1.0 = Vector only).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"table\": \"documents\",\n  \"vector_column\": \"embedding\",\n  \"text_column\": \"content\",\n  \"vector\": [\n    0.034,\n    -0.125,\n    0.442,\n    -0.012,\n    0.771\n  ],\n  \"query\": \"transactional storage engine\",\n  \"alpha\": 0.65,\n  \"top_k\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. AI Cognitive Memory & Agents",
+      "description": "Episodic, Semantic, Working, and Long-Term cognitive memory subsystem with automatic sleep consolidation.",
+      "item": [
+        {
+          "name": "8.1 Store Agent Memory",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/memory/store",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "memory",
+                "store"
+              ]
+            },
+            "description": "Stores an experience or fact into the AI cognitive memory store.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"session_id\": \"agent_session_77\",\n  \"memory_type\": \"Episodic\",\n  \"content\": \"User requested automated daily backups at 02:00 UTC with AES-256-GCM encryption.\",\n  \"importance\": 0.95,\n  \"metadata\": {\n    \"category\": \"user_preference\",\n    \"component\": \"backup_system\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "8.2 Recall Agent Memory",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/memory/recall",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "memory",
+                "recall"
+              ]
+            },
+            "description": "Retrieves relevant memories based on contextual session similarity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"session_id\": \"agent_session_77\",\n  \"memory_type\": \"Episodic\",\n  \"top_k\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "8.3 Consolidate Working Memory",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/memory/consolidate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ai",
+                "memory",
+                "consolidate"
+              ]
+            },
+            "description": "Triggers memory consolidation to compress ephemeral observations into long-term semantic knowledge.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"session_id\": \"agent_session_77\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Graph Database Engine (Neo4j Style)",
+      "description": "Labeled Property Graph engine supporting nodes, directed typed edges, neighbor traversal, and shortest path finding.",
+      "item": [
+        {
+          "name": "9.1 Create/Update Graph Node",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/graph/node",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graph",
+                "node"
+              ]
+            },
+            "description": "Upserts a graph node with labels and properties.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"id\": \"srv_cluster_leader\",\n  \"labels\": [\n    \"Server\",\n    \"Coordinator\"\n  ],\n  \"properties\": {\n    \"hostname\": \"node-1.pingdart.internal\",\n    \"region\": \"us-east-1\",\n    \"ram_gb\": 128\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9.2 Create Directed Graph Edge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/graph/edge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graph",
+                "edge"
+              ]
+            },
+            "description": "Creates a directed relationship between two nodes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"id\": \"edge_replicates_to\",\n  \"source\": \"srv_cluster_leader\",\n  \"target\": \"srv_cluster_replica\",\n  \"type\": \"REPLICATES_TO\",\n  \"weight\": 1,\n  \"properties\": {\n    \"sync_mode\": \"streaming\",\n    \"max_lag_ms\": 5\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9.3 Find Shortest Path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/graph/path",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graph",
+                "path"
+              ]
+            },
+            "description": "Calculates the shortest graph traversal path between two nodes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"start\": \"srv_cluster_leader\",\n  \"end\": \"srv_cluster_replica\",\n  \"max_hops\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "9.4 Query Node Neighbors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/graph/neighbors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graph",
+                "neighbors"
+              ]
+            },
+            "description": "Returns adjacent neighbors of a node filtered by edge type and target label.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"node_id\": \"srv_cluster_leader\",\n  \"edge_type\": \"REPLICATES_TO\",\n  \"target_label\": \"Server\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10. Indexes & Secondary Indexing",
+      "description": "B+Tree secondary and unique indexing for sub-millisecond point lookups and range scans.",
+      "item": [
+        {
+          "name": "10.1 Create Secondary Index",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/index/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "index",
+                "create"
+              ]
+            },
+            "description": "Builds a composite B+Tree secondary index on specified table fields.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"table\": \"customers\",\n  \"fields\": [\n    \"email\",\n    \"credit_score\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "10.2 List Table Indexes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/index/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "index",
+                "list"
+              ]
+            },
+            "description": "Lists all active B+Tree indexes in the target database.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "10.3 Index Operational Stats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/index/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "index",
+                "stats"
+              ]
+            },
+            "description": "Returns page split, depth, and entry counts for indexes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "10.4 Drop Index",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/index/drop",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "index",
+                "drop"
+              ]
+            },
+            "description": "Deallocates index structure and frees disk space.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"table\": \"customers\",\n  \"fields\": [\n    \"email\",\n    \"credit_score\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "11. CDC & Change Data Capture",
+      "description": "Durable WAL event streaming and downstream consumer replay.",
+      "item": [
+        {
+          "name": "11.1 Replay CDC Log Events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cdc/replay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cdc",
+                "replay"
+              ]
+            },
+            "description": "Replays mutation events from the durable write-ahead commit log.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"since_sequence_id\": 0,\n  \"limit\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "12. Multi-Tenant Governance & RLS",
+      "description": "Hardware tenant quota isolation (Storage, Vectors, QPS) and Row-Level Security policies.",
+      "item": [
+        {
+          "name": "12.1 Create Tenant with Quotas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenant/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenant",
+                "create"
+              ]
+            },
+            "description": "Provisions an isolated tenant container with hard enforcement limits.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"tenant_id\": \"tenant_fintech_corp\",\n  \"name\": \"FinTech Enterprise Corp\",\n  \"max_storage_mb\": 20480,\n  \"max_vectors\": 2000000,\n  \"max_qps\": 500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "12.2 List All Tenants",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenant/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenant",
+                "list"
+              ]
+            },
+            "description": "Returns all registered tenants and their quota utilization.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "12.3 Register RLS Policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenant/policy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenant",
+                "policy"
+              ]
+            },
+            "description": "Configures row-level security policy restricting data visibility by active tenant.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"name\": \"rls_fintech_isolation\",\n  \"table\": \"transactions\",\n  \"command\": \"ALL\",\n  \"using_expr\": \"tenant_id = current_tenant()\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "12.4 Toggle RLS on Table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenant/rls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenant",
+                "rls"
+              ]
+            },
+            "description": "Enables or disables Row-Level Security evaluation on a table.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"table\": \"transactions\",\n  \"enable\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "13. Cluster & Raft Consensus",
+      "description": "Raft consensus engine, cluster membership, consistent hash sharding, and multi-node topology.",
+      "item": [
+        {
+          "name": "13.1 Cluster Status & Topology",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cluster/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cluster",
+                "status"
+              ]
+            },
+            "description": "Returns cluster member list, Raft state (Leader/Follower), term, and shard allocations."
+          },
+          "response": []
+        },
+        {
+          "name": "13.2 Join Node to Cluster Seed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cluster/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cluster",
+                "join"
+              ]
+            },
+            "description": "Directs current node to join an existing Raft cluster via seed address.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seed_address\": \"127.0.0.1:4651\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "13.3 Shard Scatter-Gather Vector Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cluster/shard/vector_search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cluster",
+                "shard",
+                "vector_search"
+              ]
+            },
+            "description": "Executes partition-level vector search across cluster shards.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table\": \"documents\",\n  \"column\": \"embedding\",\n  \"vector\": [\n    0.034,\n    -0.125,\n    0.442,\n    -0.012,\n    0.771\n  ],\n  \"top_k\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "14. Enterprise Security & Access Control",
+      "description": "Granular RBAC roles, scoped API key lifecycle, and AES-256-GCM envelope cryptographic service.",
+      "item": [
+        {
+          "name": "14.1 Create Scoped API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/security/apikey/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "apikey",
+                "create"
+              ]
+            },
+            "description": "Issues a revocable service API key (prefix pd_live_).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"name\": \"bi_dashboard_service_key\",\n  \"roles\": [\n    \"TableRead\",\n    \"VectorSearch\"\n  ],\n  \"tenant_id\": \"default\",\n  \"ttl_secs\": 2592000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "14.2 List Active API Keys",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/security/apikey/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "apikey",
+                "list"
+              ]
+            },
+            "description": "Lists all provisioned API key metadata (secrets remain hashed).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "14.3 Revoke API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/security/apikey/revoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "apikey",
+                "revoke"
+              ]
+            },
+            "description": "Immediately revokes an active API key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"key_id\": \"key_replace_with_id\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "14.4 Create Custom RBAC Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/security/role/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "role",
+                "create"
+              ]
+            },
+            "description": "Defines a custom role with fine-grained permission flags.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"name\": \"DataAnalystRole\",\n  \"description\": \"Read-only access to analytics tables and vectors\",\n  \"permissions\": [\n    \"TableRead\",\n    \"VectorSearch\",\n    \"AuditRead\"\n  ],\n  \"scope\": \"global\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "14.5 List RBAC Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/security/role/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "role",
+                "list"
+              ]
+            },
+            "description": "Lists all system and custom RBAC roles."
+          },
+          "response": []
+        },
+        {
+          "name": "14.6 Envelope Encrypt Payload (AES-256-GCM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/security/encrypt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "encrypt"
+              ]
+            },
+            "description": "Encrypts arbitrary plaintext using engine's master envelope key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"plaintext\": \"Sensitive healthcare patient records or payment token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "14.7 Envelope Decrypt Payload (AES-256-GCM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/security/decrypt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "decrypt"
+              ]
+            },
+            "description": "Decrypts ciphertext hex string back into original plaintext.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"ciphertext_hex\": \"paste_hex_output_from_encrypt_here\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "15. Universal Migration Framework",
+      "description": "Zero-downtime ETL migration pipeline supporting MySQL dumps, PostgreSQL, MongoDB extended JSON, and CSV.",
+      "item": [
+        {
+          "name": "15.1 Start Migration Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/migration/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "migration",
+                "start"
+              ]
+            },
+            "description": "Spawns an asynchronous background migration job.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"source_type\": \"mysql_dump\",\n  \"source_path\": \"sql/meddylist_sample.sql\",\n  \"target_table\": \"migrated_clinics\",\n  \"schema_policy\": \"Lenient\",\n  \"primary_key\": \"id\",\n  \"batch_size\": 500,\n  \"workers\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "15.2 List All Migration Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/migration/jobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "migration",
+                "jobs"
+              ]
+            },
+            "description": "Returns all historical and running migration jobs."
+          },
+          "response": []
+        },
+        {
+          "name": "15.3 Get Migration Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/migration/status/:job_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "migration",
+                "status",
+                ":job_id"
+              ],
+              "variable": [
+                {
+                  "key": "job_id",
+                  "value": "job_123",
+                  "description": "URL parameter for :job_id"
+                }
+              ]
+            },
+            "description": "Fetches live progress (processed rows, failed rows, throughput)."
+          },
+          "response": []
+        },
+        {
+          "name": "15.4 Validate Migration Integrity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/migration/validate/:job_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "migration",
+                "validate",
+                ":job_id"
+              ],
+              "variable": [
+                {
+                  "key": "job_id",
+                  "value": "job_123",
+                  "description": "URL parameter for :job_id"
+                }
+              ]
+            },
+            "description": "Verifies source-to-target checksums and schema conformity."
+          },
+          "response": []
+        },
+        {
+          "name": "15.5 Resume Paused Migration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/migration/resume/:job_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "migration",
+                "resume",
+                ":job_id"
+              ],
+              "variable": [
+                {
+                  "key": "job_id",
+                  "value": "job_123",
+                  "description": "URL parameter for :job_id"
+                }
+              ]
+            },
+            "description": "Resumes interrupted migration from last durable checkpoint.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "15.6 Abort Migration Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/migration/abort/:job_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "migration",
+                "abort",
+                ":job_id"
+              ],
+              "variable": [
+                {
+                  "key": "job_id",
+                  "value": "job_123",
+                  "description": "URL parameter for :job_id"
+                }
+              ]
+            },
+            "description": "Cancels an ongoing migration job.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "16. Backup & Disaster Recovery",
+      "description": "Online point-in-time snapshots, PITR transaction replay, and encrypted Protobuf (.pb) packaging.",
+      "item": [
+        {
+          "name": "16.1 Create Online Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/backup/snapshot",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backup",
+                "snapshot"
+              ]
+            },
+            "description": "Freezes WAL and creates a verifiable storage snapshot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.2 Restore Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/backup/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backup",
+                "restore"
+              ]
+            },
+            "description": "Restores entire database state from a snapshot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"snapshot_id\": \"snapshot_replace_with_id\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.3 Point-In-Time Recovery (PITR)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/backup/pitr",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backup",
+                "pitr"
+              ]
+            },
+            "description": "Replays WAL transactions up to an exact epoch millisecond timestamp.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"target_timestamp\": 1740000000000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.4 Export Protobuf (.pb) Encrypted Archive",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/backup/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backup",
+                "export"
+              ]
+            },
+            "description": "Packages table data into a ZSTD-compressed, AES-256 encrypted .pb container.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"export_type\": \"database\",\n  \"database\": \"{{database}}\",\n  \"file_path\": \"backups/prod_backup_export.pb\",\n  \"encrypt\": true,\n  \"key\": \"PingDartMasterSecurityPassphrase2026!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.5 Import Protobuf (.pb) Archive",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/backup/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "backup",
+                "import"
+              ]
+            },
+            "description": "Validates checksum, decrypts, and unpacks .pb backup.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"file_path\": \"backups/prod_backup_export.pb\",\n  \"key\": \"PingDartMasterSecurityPassphrase2026!\",\n  \"target_db\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.6 Database JSON Dump Export",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/database/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "database",
+                "export"
+              ]
+            },
+            "description": "Exports all tables as portable JSON documents.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.7 Database JSON Dump Import",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/database/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "database",
+                "import"
+              ]
+            },
+            "description": "Imports tables from JSON dump structure.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{authToken}}\",\n  \"database\": \"{{database}}\",\n  \"data\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "17. Observability, Health & Diagnostics",
+      "description": "Prometheus metrics, OpenTelemetry distributed traces, and slow query heuristics.",
+      "item": [
+        {
+          "name": "17.1 Engine Status & Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            },
+            "description": "Returns high-level engine operational status and feature flags."
+          },
+          "response": []
+        },
+        {
+          "name": "17.2 Kubernetes Liveness Probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "live"
+              ]
+            },
+            "description": "K8s liveness probe returning UP status."
+          },
+          "response": []
+        },
+        {
+          "name": "17.3 Kubernetes Readiness Probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ]
+            },
+            "description": "K8s readiness probe verifying Raft leader election and storage engine readiness."
+          },
+          "response": []
+        },
+        {
+          "name": "17.4 Prometheus Metrics Scraping",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Standard Prometheus /metrics scrape endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "17.5 List OpenTelemetry Trace Spans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/observability/traces?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "observability",
+                "traces"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Lists recent distributed traces."
+          },
+          "response": []
+        },
+        {
+          "name": "17.6 Get Trace Span Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/observability/traces/:trace_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "observability",
+                "traces",
+                ":trace_id"
+              ],
+              "variable": [
+                {
+                  "key": "trace_id",
+                  "value": "trace_123",
+                  "description": "URL parameter for :trace_id"
+                }
+              ]
+            },
+            "description": "Inspects full call tree and execution latency of a trace span."
+          },
+          "response": []
+        },
+        {
+          "name": "17.7 List Slow Queries & Heuristics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/observability/slow_queries?limit=50&tenant=default",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "observability",
+                "slow_queries"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": ""
+                },
+                {
+                  "key": "tenant",
+                  "value": "default",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Lists queries that exceeded slow query threshold with index optimization hints."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "18. Storage Engine (HBSE File Management)",
+      "description": "Hybrid Block Storage Engine for object, image, and document binary storage with deduplication and CDC tracking.",
+      "item": [
+        {
+          "name": "18.1 Upload Binary File (Multipart)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storage",
+                "upload"
+              ]
+            },
+            "description": "Uploads a binary file to the storage engine.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "Select any file or media to upload"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18.2 List Uploaded Files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storage",
+                "files"
+              ]
+            },
+            "description": "Returns metadata for all files stored in the engine."
+          },
+          "response": []
+        },
+        {
+          "name": "18.3 Get File Metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/files/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storage",
+                "files",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "URL parameter for :id"
+                }
+              ]
+            },
+            "description": "Retrieves size, MIME type, compression ratio, and download URL for a file."
+          },
+          "response": []
+        },
+        {
+          "name": "18.4 Download File Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/files/:id/download",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storage",
+                "files",
+                ":id",
+                "download"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "URL parameter for :id"
+                }
+              ]
+            },
+            "description": "Streams file binary directly."
+          },
+          "response": []
+        },
+        {
+          "name": "18.5 Delete File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/files/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "storage",
+                "files",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "URL parameter for :id"
+                }
+              ]
+            },
+            "description": "Deletes file binary and metadata."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "19. Realtime WebSockets & Live Subscriptions (Firebase-like)",
+      "description": "Live CDC table change events, presence tracking, and ephemeral channel broadcasts over WebSockets (ws://localhost:4650/v1/realtime or /ws).",
+      "item": [
+        {
+          "name": "19.1 Connect to Realtime Gateway (WebSocket)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Upgrade",
+                "value": "websocket",
+                "type": "text",
+                "description": ""
+              },
+              {
+                "key": "Connection",
+                "value": "Upgrade",
+                "type": "text",
+                "description": ""
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime?token={{authToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Connect to the live WebSocket gateway at ws://localhost:4650/v1/realtime?token={{authToken}} or ws://localhost:4650/ws"
+          },
+          "response": []
+        },
+        {
+          "name": "19.2 Authenticate Session Frame (action: auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ]
+            },
+            "description": "Sends an authentication frame over WebSocket if token was not provided in initial handshake URL query params.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"auth\",\n  \"token\": \"{{authToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "19.3 Live Subscribe to Table (action: subscribe)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ]
+            },
+            "description": "Subscribes to live CDC table changes (INSERT, UPDATE, DELETE). If fetch_snapshot is true, immediately receives initial table state snapshot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"subscribe\",\n  \"table\": \"customers\",\n  \"database\": \"{{database}}\",\n  \"fetch_snapshot\": true,\n  \"filter\": {\n    \"is_verified\": \"true\"\n  },\n  \"primary_key\": \"id\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "19.4 Unsubscribe from Table (action: unsubscribe)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ]
+            },
+            "description": "Cancels active subscription to table events.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"unsubscribe\",\n  \"table\": \"customers\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "19.5 Broadcast Ephemeral Channel Message (action: broadcast)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ]
+            },
+            "description": "Broadcasts an ephemeral message to all clients in a channel without writing to persistent storage.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"broadcast\",\n  \"channel\": \"chat_room_alpha\",\n  \"payload\": {\n    \"user_id\": \"ravi80181\",\n    \"event\": \"typing\",\n    \"text\": \"Ravi is typing a message...\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "19.6 Track Online Presence State (action: presence_track)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ]
+            },
+            "description": "Tracks online status. The server broadcasts presence_state and presence_diff (joins/leaves) to all channel participants.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"presence_track\",\n  \"channel\": \"global_lobby\",\n  \"user_id\": \"ravi80181\",\n  \"state\": {\n    \"status\": \"online\",\n    \"device\": \"desktop\",\n    \"client_version\": \"v0.5.0\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "19.7 Leave Presence Channel (action: presence_leave)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ]
+            },
+            "description": "Leaves a presence channel. Notifies all participants of departure.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"presence_leave\",\n  \"channel\": \"global_lobby\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "19.8 Heartbeat Ping Frame (action: ping)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/realtime",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "realtime"
+              ]
+            },
+            "description": "Sends a keep-alive ping frame. The server responds immediately with a 'pong' event and epoch timestamp.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"ping\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
