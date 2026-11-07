@@ -17,8 +17,12 @@ name = "pingdart-mcp"
 path = "src/bin/mcp_server.rs"
 
 [[bin]]
-name = "pingdart"
+name = "cli"
 path = "src/bin/cli.rs"
+
+[[bin]]
+name = "pingdart"
+path = "src/bin/pingdart.rs"
 
 [[bin]]
 name = "pingdart-benchmark"

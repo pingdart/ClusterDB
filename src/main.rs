@@ -27,8 +27,32 @@ pub mod api;
 use anyhow::Result;
 use tracing::info;
 
+fn load_env_file() {
+    for p in &[".env", "../RustApis/.env"] {
+        if let Ok(content) = std::fs::read_to_string(p) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') {
+                    continue;
+                }
+                if let Some((k, v)) = trimmed.split_once('=') {
+                    let key = k.trim();
+                    let val = v.trim().trim_matches('"').trim_matches('\'');
+                    if std::env::var(key).is_err() {
+                        unsafe {
+                            std::env::set_var(key, val);
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    load_env_file();
     tracing_subscriber::fmt::init();
     
     let args: Vec<String> = std::env::args().collect();
@@ -110,15 +134,26 @@ async fn main() -> Result<()> {
     let db = storage::StorageEngine::new(&data_dir)?;
     info!("Storage engine initialized at ./{}", data_dir);
 
-    // Initialize main admin user (ravi80181 / RavindraChinnu12#)
-    let root_user = auth::User::new_root("RavindraChinnu12#".to_string());
+    // Ensure 'default' database is registered in _databases
+    let _ = db.set("_databases", "default", &true);
+
+    // Read admin user & password from environment or use configured defaults
+    let admin_user = std::env::var("PINGDART_DB_USER")
+        .or_else(|_| std::env::var("ADMIN_USER"))
+        .unwrap_or_else(|_| "ravi80181".to_string());
+    let admin_pass = std::env::var("PINGDART_DB_PASSWORD")
+        .or_else(|_| std::env::var("ADMIN_PASSWORD"))
+        .unwrap_or_else(|_| "RavindraChinnu12@".to_string());
+
+    // Initialize main admin user (ravi80181 with configured credentials)
+    let root_user = auth::User::new_root_with_name(&admin_user, admin_pass.clone());
     db.set("_users", &root_user.username, &root_user)?;
     info!("Main admin user '{}' initialized with configured credentials", root_user.username);
 
     // Also synchronize admin alias for backward compatibility
     let admin_alias = auth::User::new_user(
         "admin".to_string(),
-        "RavindraChinnu12#".to_string(),
+        admin_pass,
         "%".to_string(),
         vec![auth::Role::MainAdmin],
     );

@@ -16,3 +16,4 @@ node_modules/
 .next/
 **/.next/
 test_data_*
+.env
