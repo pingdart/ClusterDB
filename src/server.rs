@@ -440,7 +440,20 @@ pub async fn start_server(
         let index_file = format!("{}/index.html", path);
         let myadmin_service = tower_http::services::ServeDir::new(path)
             .fallback(tower_http::services::ServeFile::new(index_file));
-        app.nest_service("/myadmin", myadmin_service)
+
+        app.route(
+            "/myadmin",
+            get(|| async { axum::response::Redirect::permanent("/myadmin/") }),
+        )
+        .route(
+            "/login",
+            get(|| async { axum::response::Redirect::temporary("/myadmin/login/") }),
+        )
+        .route(
+            "/login/",
+            get(|| async { axum::response::Redirect::temporary("/myadmin/login/") }),
+        )
+        .nest_service("/myadmin/", myadmin_service)
     } else {
         app
     };
