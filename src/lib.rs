@@ -22,5 +22,6 @@ pub mod migration;
 pub mod wal;
 pub mod mvcc;
 pub mod pgwire;
+pub mod mysqlwire;
 pub mod realtime;
 pub mod api;

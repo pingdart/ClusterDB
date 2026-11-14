@@ -23,6 +23,8 @@ fn print_help() {
     println!("Commands:");
     println!("  login                    Prompt for credentials and save session token");
     println!("  status                   Show database cluster operational status");
+    println!("  check-update             Check git repository for new versions/releases");
+    println!("  upgrade                  Perform safe in-place upgrade with auto-rollback");
 }
 
 fn get_session_file() -> PathBuf {
@@ -201,6 +203,29 @@ async fn main() -> anyhow::Result<()> {
                         exit(1);
                     }
                 }
+                return Ok(());
+            }
+            "check-update" | "update-check" => {
+                let status = std::process::Command::new("pingdart-upgrade")
+                    .arg("check")
+                    .status()
+                    .or_else(|_| {
+                        std::process::Command::new("./upgrade.sh")
+                            .arg("check")
+                            .status()
+                    });
+
+                if let Err(e) = status {
+                    eprintln!("Failed to execute upgrade check: {}. Ensure pingdart-upgrade or ./upgrade.sh is present.", e);
+                    exit(1);
+                }
+                return Ok(());
+            }
+            "upgrade" => {
+                println!("PingDartDB Safe In-Place Upgrader");
+                println!("To compile in background without stopping the live app and auto-restart, run:");
+                println!("  sudo pingdart-upgrade");
+                println!("  (or: sudo ./upgrade.sh)");
                 return Ok(());
             }
             "login" => {

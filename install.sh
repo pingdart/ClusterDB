@@ -129,6 +129,12 @@ if [ -f "${SCRIPT_DIR}/scripts/pingdart-vault.sh" ]; then
     echo "Installed: ${BIN_DIR}/pingdart-vault"
 fi
 
+# Install safe upgrader CLI
+if [ -f "${SCRIPT_DIR}/upgrade.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/upgrade.sh" "${BIN_DIR}/pingdart-upgrade"
+    echo "Installed: ${BIN_DIR}/pingdart-upgrade"
+fi
+
 # ------------------------------------------------------------------------------
 # [4/7] Dedicated Service Account & FHS Directory Creation
 # ------------------------------------------------------------------------------

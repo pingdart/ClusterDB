@@ -323,6 +323,7 @@ pub async fn insert_record(
 
         // Register table in _tables
         let _ = state.storage.set("_tables", &full_table_name, &true);
+        let _ = state.storage.flush();
 
         let resp_json = serde_json::json!({
             "status": "success",
@@ -390,6 +391,7 @@ pub async fn insert_record(
 
     // Register table in _tables
     let _ = state.storage.set("_tables", &full_table_name, &true);
+    let _ = state.storage.flush();
 
     let final_val = Value::Object(payload_obj);
 
@@ -478,13 +480,22 @@ pub async fn update_record(
 
     let mut row = match state.storage.get::<crate::exec::RowData>(&full_table_name, &id) {
         Ok(Some(r)) if !r._deleted => r,
-        Ok(_) => {
-            return Err(ApiError::not_found(format!(
-                "Record '{}' not found in table '{}'",
-                id, table
-            )))
+        _ => {
+            // Upsert: Create row if it does not exist yet (e.g. idempotent PUT operations)
+            crate::exec::RowData {
+                _id: id.clone(),
+                _version: 0,
+                _created_at: chrono::Utc::now().timestamp_millis() as u64,
+                _updated_at: chrono::Utc::now().timestamp_millis() as u64,
+                _deleted: false,
+                _owner: None,
+                _tenant: Some(db.clone()),
+                _checksum: None,
+                _page_id: None,
+                _transaction_id: None,
+                columns: HashMap::new(),
+            }
         }
-        Err(e) => return Err(ApiError::internal(format!("Storage error: {}", e))),
     };
 
     let before_json = serde_json::to_value(&row.columns).unwrap_or_default();
@@ -514,6 +525,10 @@ pub async fn update_record(
     if let Err(e) = state.storage.set(&full_table_name, &id, &row) {
         return Err(ApiError::internal(format!("Failed to update row: {}", e)));
     }
+
+    // Register table in _tables and flush WAL immediately to guarantee zero data loss
+    let _ = state.storage.set("_tables", &full_table_name, &true);
+    let _ = state.storage.flush();
 
     // Emit CDC update event
     let _ = state.executor.cdc_streamer.emit(
@@ -559,6 +574,7 @@ pub async fn delete_record(
 
     let old_json = serde_json::to_value(&row.columns).unwrap_or_default();
     let _ = state.storage.delete(&full_table_name, &id);
+    let _ = state.storage.flush();
 
     // Emit CDC delete event
     let _ = state.executor.cdc_streamer.emit(

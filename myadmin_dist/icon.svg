@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="pingdart-grad" x1="4" y1="60" x2="60" y2="4" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="55%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+  </defs>
+  <!-- Squircle background matching PingDart MyAdmin sidebar badge -->
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#pingdart-grad)" />
+  <!-- Database cylinder icon -->
+  <ellipse cx="32" cy="19" rx="14" ry="5.5" stroke="#FFFFFF" stroke-width="3.2" fill="rgba(255,255,255,0.12)" />
+  <path d="M18 19v13c0 3.04 6.27 5.5 14 5.5s14-2.46 14-5.5V19" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M18 32v13c0 3.04 6.27 5.5 14 5.5s14-2.46 14-5.5V32" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Live emerald indicator dot -->
+  <circle cx="51" cy="51" r="7.5" fill="#10B981" stroke="#060913" stroke-width="3" />
+</svg>
+

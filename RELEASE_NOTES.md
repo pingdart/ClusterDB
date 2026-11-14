@@ -22,10 +22,15 @@ PingDartDB `v0.5.0-rc1` introduces automated Linux production packaging, standar
 - Non-interactive script execution via `pingdart -e "<SQL>"`.
 - Secure credential management via `PINGDART_PASSWORD` environment variable to prevent `/proc` process snooping.
 
-### 3. ACID-Consistent Upgrades & Automatic Rollback (`upgrade.sh`)
-- Pauses the database service and executes filesystem `sync` before snapshotting, guaranteeing clean WAL state.
-- Automatically verifies snapshot readability (`tar -tzf`) prior to replacing binaries.
-- If post-upgrade health checks fail, **automatically isolates the failed state** into `data_failed_upgrade_<TIMESTAMP>` (preventing data loss) and restores the verified snapshot and previous binary.
+### 3. ACID-Consistent Upgrades & Zero-Downtime Hot Swap (`upgrade.sh` / `pingdart-upgrade`)
+- **Remote Git Update Checking (`pingdart-upgrade check` / `pingdart check-update`)**: Inspects Git remote for new commits, releases, and changelogs on a live server without requiring root or modifying the running database.
+- **Zero-Downtime Staging**: Compiles release binaries in the background while the database remains **100% online and actively serving client queries**.
+- **Atomic Hot-Swap & Rapid Restart**:
+  - Automatically executes filesystem `sync` and creates a verified pre-upgrade snapshot (`tar -tzf`).
+  - Swaps active binaries atomically and triggers a sub-second service restart.
+- **Automated Self-Healing Rollback**:
+  - Executes comprehensive post-upgrade health probes (`health-check.sh`).
+  - If verification fails, **automatically isolates the failed state** into `data_failed_upgrade_<TIMESTAMP>` (preventing data corruption) and rolls back both binaries and the verified database snapshot.
 
 ### 4. Storage & Query Optimization Engine
 - **SlottedPage & BufferPoolManager**: Page-level memory caching with Clock replacement.
@@ -50,7 +55,7 @@ sha256sum -c pingdartdb-v0.5.0-linux-arm64.sha256
 
 ---
 
-## 🚀 Installation Instructions
+## 🚀 Installation & Upgrade Instructions
 
 ### Option A: Install from Release Tarball (Recommended for Staging/Production)
 ```bash
@@ -66,6 +71,34 @@ git clone https://github.com/pingdart/ClusterDB.git
 cd ClusterDB
 sudo ./install.sh
 ```
+
+---
+
+## 🔄 Live Server Upgrades & Remote Version Checking
+
+### 1. Check for New Versions (While Database is Live)
+Operators can check if new Git tags, commits, or releases exist without stopping the server or requiring root:
+```bash
+# Via upgrader CLI
+pingdart-upgrade check
+
+# Or via pingdart interactive client
+pingdart check-update
+
+# Or directly from the repository
+./upgrade.sh check
+```
+
+### 2. Perform Zero-Downtime Live In-Place Upgrade & Auto-Restart
+Compiles release binaries in the background while the database server continues serving active client traffic, then executes an atomic swap and sub-second restart:
+```bash
+# Single command live upgrade with automated backup & rollback
+sudo pingdart-upgrade
+
+# (or from the project repository)
+sudo ./upgrade.sh
+```
+*Note: If health verification fails after upgrade, it automatically isolates the failed data and rolls back binary and database state to pre-upgrade snapshot.*
 
 ---
 

@@ -199,11 +199,17 @@ impl RealtimeHub {
         };
 
         for (_client_id, session) in clients.iter() {
-            // Check if this client is subscribed to this table
-            if let Some(sub) = session.subscriptions.get(&record.table) {
-                // If sub has database specified, check it (or if default)
+            let mut matched = false;
+
+            for sub in session.subscriptions.values() {
+                // Table check: wildcard '*' or empty matches everything; otherwise must match record.table
+                if sub.table != "*" && !sub.table.is_empty() && sub.table != record.table {
+                    continue;
+                }
+
+                // Database check: wildcard '%' or '*' or empty matches everything; otherwise must match record.database
                 let sub_db = if sub.database.is_empty() {
-                    "default"
+                    "%"
                 } else {
                     sub.database.as_str()
                 };
@@ -214,7 +220,7 @@ impl RealtimeHub {
                 };
 
                 let clean_rec_db = rec_db.trim_end_matches('_');
-                if sub_db != clean_rec_db && sub_db != "%" {
+                if sub_db != "%" && sub_db != "*" && sub_db != clean_rec_db && sub_db != rec_db {
                     continue;
                 }
 
@@ -228,7 +234,7 @@ impl RealtimeHub {
                 // If sub has field filters
                 if let Some(ref filters) = sub.filter {
                     if let Some(ref val_obj) = record_val {
-                        let mut matches = true;
+                        let mut field_matches = true;
                         if let Some(map) = val_obj.as_object() {
                             for (field, target_val) in filters {
                                 if let Some(field_val) = map.get(field) {
@@ -237,21 +243,26 @@ impl RealtimeHub {
                                         .map(|s| s.to_string())
                                         .unwrap_or_else(|| field_val.to_string());
                                     if &str_val != target_val {
-                                        matches = false;
+                                        field_matches = false;
                                         break;
                                     }
                                 } else {
-                                    matches = false;
+                                    field_matches = false;
                                     break;
                                 }
                             }
                         }
-                        if !matches {
+                        if !field_matches {
                             continue;
                         }
                     }
                 }
 
+                matched = true;
+                break;
+            }
+
+            if matched {
                 // Match confirmed! Send real-time event to client
                 let _ = session.tx.send(event.clone());
             }
@@ -504,6 +515,9 @@ impl RealtimeHub {
         filter: &Option<HashMap<String, String>>,
         primary_key: &Option<String>,
     ) -> Vec<serde_json::Value> {
+        if table == "*" || table.is_empty() {
+            return Vec::new();
+        }
         let full_table_name = if table.starts_with(&format!("{}_", database)) {
             table.to_string()
         } else {

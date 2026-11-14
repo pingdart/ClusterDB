@@ -82,6 +82,20 @@ pub struct AgentDescriptor {
     pub created_at: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DatabaseMetadata {
+    pub db_id: String,
+    pub name: String,
+    #[serde(default = "default_workload_type")]
+    pub workload_type: String,
+    #[serde(default)]
+    pub created_at: u64,
+}
+
+fn default_workload_type() -> String {
+    "sql".to_string()
+}
+
 impl TableSchema {
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self> {
         if let Ok(schema) = bincode::deserialize::<TableSchema>(bytes) {
@@ -183,6 +197,67 @@ impl std::fmt::Display for EvalVal {
 
 pub fn clean_ident(s: &str) -> String {
     s.trim().trim_matches(|c| c == '`' || c == '"' || c == '\'').to_string()
+}
+
+pub fn parse_column_def_tokens(tokens: &[&str]) -> Option<ColumnDef> {
+    if tokens.is_empty() {
+        return None;
+    }
+    let name = clean_ident(tokens[0]);
+    let mut data_type = if tokens.len() > 1 {
+        tokens[1].to_uppercase()
+    } else {
+        "VARCHAR(255)".to_string()
+    };
+    let mut is_primary = false;
+    let mut auto_increment = false;
+    let mut is_unique = false;
+    let mut is_not_null = false;
+    let mut default_value = None;
+
+    let mut i = 2;
+    while i < tokens.len() {
+        let t_upper = tokens[i].to_uppercase();
+        if t_upper == "PRIMARY" && i + 1 < tokens.len() && tokens[i + 1].eq_ignore_ascii_case("KEY") {
+            is_primary = true;
+            is_unique = true;
+            is_not_null = true;
+            i += 2;
+        } else if t_upper == "AUTO_INCREMENT" {
+            auto_increment = true;
+            i += 1;
+        } else if t_upper == "UNIQUE" {
+            is_unique = true;
+            i += 1;
+        } else if t_upper == "NOT" && i + 1 < tokens.len() && tokens[i + 1].eq_ignore_ascii_case("NULL") {
+            is_not_null = true;
+            i += 2;
+        } else if t_upper == "NULL" {
+            is_not_null = false;
+            i += 1;
+        } else if t_upper == "DEFAULT" && i + 1 < tokens.len() {
+            let def_val = tokens[i + 1].trim_matches(';').trim_matches('\'').trim_matches('"');
+            default_value = Some(def_val.to_string());
+            i += 2;
+        } else {
+            if tokens[i].starts_with('(') || tokens[i].ends_with(')') {
+                data_type.push_str(tokens[i]);
+            }
+            i += 1;
+        }
+    }
+
+    Some(ColumnDef {
+        name,
+        data_type,
+        is_primary,
+        auto_increment,
+        is_unique,
+        is_not_null,
+        default_value,
+        generated_from: None,
+        using_model: None,
+    })
 }
 
 pub fn parse_backup_target_options(input: &str) -> (String, bool, Option<String>) {
@@ -979,6 +1054,193 @@ impl Executor {
         Ok(results)
     }
 
+    pub fn handle_alter_table_columns(&self, query: &str, current_db: Option<&str>) -> Result<String> {
+        let q_clean = query.trim().trim_end_matches(';');
+        let parts: Vec<&str> = q_clean.split_whitespace().collect();
+        if parts.len() < 4 {
+            return Err(anyhow!("Invalid ALTER TABLE syntax: expected 'ALTER TABLE <name> <action>'"));
+        }
+
+        let raw_table = clean_ident(parts[2]);
+        let (db_name, table_name) = if raw_table.contains('.') {
+            let segs: Vec<&str> = raw_table.splitn(2, '.').collect();
+            (segs[0].to_string(), segs[1].to_string())
+        } else {
+            (current_db.unwrap_or("default").to_string(), raw_table)
+        };
+
+        let full_table_name = format!("{}_{}", db_name, table_name);
+
+        let mut schema = match self.get_table_schema(&full_table_name)? {
+            Some(s) => s,
+            None => {
+                let mut cols = Vec::new();
+                cols.push(ColumnDef {
+                    name: "id".to_string(),
+                    data_type: "INT".to_string(),
+                    is_primary: true,
+                    auto_increment: true,
+                    is_unique: true,
+                    is_not_null: true,
+                    default_value: None,
+                    generated_from: None,
+                    using_model: None,
+                });
+                TableSchema {
+                    name: table_name.clone(),
+                    columns: cols,
+                }
+            }
+        };
+
+        let action_kw = parts[3].to_uppercase();
+        let mut next_idx = 4;
+        if next_idx < parts.len() && parts[next_idx].eq_ignore_ascii_case("COLUMN") {
+            next_idx += 1;
+        }
+
+        match action_kw.as_str() {
+            "ADD" => {
+                if next_idx >= parts.len() {
+                    return Err(anyhow!("Missing column definition for ALTER TABLE ADD COLUMN"));
+                }
+                let col_def = parse_column_def_tokens(&parts[next_idx..])
+                    .ok_or_else(|| anyhow!("Failed to parse column definition for ADD COLUMN"))?;
+
+                let col_name = col_def.name.clone();
+                schema.columns.retain(|c| c.name.to_lowercase() != col_name.to_lowercase());
+                schema.columns.push(col_def.clone());
+
+                self.storage.set("_schemas", &full_table_name, &schema)?;
+
+                let def_val = col_def.default_value.clone().unwrap_or_default();
+                if let Ok(rows) = self.get_rows_with_keys(&full_table_name) {
+                    for (rk, mut row) in rows {
+                        row.columns.entry(col_name.clone()).or_insert_with(|| def_val.clone());
+                        let _ = self.storage.set(&full_table_name, &rk, &row);
+                    }
+                }
+                let _ = self.storage.flush();
+                Ok(format!("Table '{}.{}' altered successfully: added column '{}'", db_name, table_name, col_name))
+            }
+            "DROP" => {
+                if next_idx >= parts.len() {
+                    return Err(anyhow!("Missing column name for ALTER TABLE DROP COLUMN"));
+                }
+                let drop_col = clean_ident(parts[next_idx]);
+                let initial_count = schema.columns.len();
+                schema.columns.retain(|c| c.name.to_lowercase() != drop_col.to_lowercase());
+                if schema.columns.len() == initial_count {
+                    return Err(anyhow!("Column '{}' does not exist in table '{}.{}'", drop_col, db_name, table_name));
+                }
+
+                self.storage.set("_schemas", &full_table_name, &schema)?;
+
+                if let Ok(rows) = self.get_rows_with_keys(&full_table_name) {
+                    for (rk, mut row) in rows {
+                        row.columns.remove(&drop_col);
+                        let _ = self.storage.set(&full_table_name, &rk, &row);
+                    }
+                }
+                let _ = self.storage.flush();
+                Ok(format!("Table '{}.{}' altered successfully: dropped column '{}'", db_name, table_name, drop_col))
+            }
+            "CHANGE" => {
+                if next_idx + 1 >= parts.len() {
+                    return Err(anyhow!("Missing arguments for ALTER TABLE CHANGE COLUMN: expected 'old_col new_col data_type...'"));
+                }
+                let old_col = clean_ident(parts[next_idx]);
+                let new_def = parse_column_def_tokens(&parts[next_idx + 1..])
+                    .ok_or_else(|| anyhow!("Failed to parse new column definition for CHANGE COLUMN"))?;
+
+                let mut found = false;
+                for col in &mut schema.columns {
+                    if col.name.to_lowercase() == old_col.to_lowercase() {
+                        *col = new_def.clone();
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return Err(anyhow!("Column '{}' does not exist in table '{}.{}'", old_col, db_name, table_name));
+                }
+
+                self.storage.set("_schemas", &full_table_name, &schema)?;
+
+                let new_col_name = new_def.name.clone();
+                if old_col.to_lowercase() != new_col_name.to_lowercase() {
+                    if let Ok(rows) = self.get_rows_with_keys(&full_table_name) {
+                        for (rk, mut row) in rows {
+                            if let Some(val) = row.columns.remove(&old_col) {
+                                row.columns.insert(new_col_name.clone(), val);
+                                let _ = self.storage.set(&full_table_name, &rk, &row);
+                            }
+                        }
+                    }
+                }
+                let _ = self.storage.flush();
+                Ok(format!("Table '{}.{}' altered successfully: column '{}' changed to '{}'", db_name, table_name, old_col, new_col_name))
+            }
+            "MODIFY" => {
+                if next_idx >= parts.len() {
+                    return Err(anyhow!("Missing arguments for ALTER TABLE MODIFY COLUMN"));
+                }
+                let mod_def = parse_column_def_tokens(&parts[next_idx..])
+                    .ok_or_else(|| anyhow!("Failed to parse column definition for MODIFY COLUMN"))?;
+
+                let col_name = mod_def.name.clone();
+                let mut found = false;
+                for col in &mut schema.columns {
+                    if col.name.to_lowercase() == col_name.to_lowercase() {
+                        *col = mod_def.clone();
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return Err(anyhow!("Column '{}' does not exist in table '{}.{}'", col_name, db_name, table_name));
+                }
+
+                self.storage.set("_schemas", &full_table_name, &schema)?;
+                let _ = self.storage.flush();
+                Ok(format!("Table '{}.{}' altered successfully: column '{}' modified", db_name, table_name, col_name))
+            }
+            "RENAME" => {
+                let old_col = clean_ident(parts[next_idx]);
+                let to_idx = parts.iter().position(|&p| p.eq_ignore_ascii_case("TO")).unwrap_or(next_idx + 1);
+                if to_idx + 1 >= parts.len() {
+                    return Err(anyhow!("Expected 'TO <new_col>' in ALTER TABLE RENAME COLUMN"));
+                }
+                let new_col = clean_ident(parts[to_idx + 1]);
+
+                let mut found = false;
+                for col in &mut schema.columns {
+                    if col.name.to_lowercase() == old_col.to_lowercase() {
+                        col.name = new_col.clone();
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return Err(anyhow!("Column '{}' does not exist in table '{}.{}'", old_col, db_name, table_name));
+                }
+
+                self.storage.set("_schemas", &full_table_name, &schema)?;
+                if let Ok(rows) = self.get_rows_with_keys(&full_table_name) {
+                    for (rk, mut row) in rows {
+                        if let Some(val) = row.columns.remove(&old_col) {
+                            row.columns.insert(new_col.clone(), val);
+                            let _ = self.storage.set(&full_table_name, &rk, &row);
+                        }
+                    }
+                }
+                let _ = self.storage.flush();
+                Ok(format!("Table '{}.{}' altered successfully: column '{}' renamed to '{}'", db_name, table_name, old_col, new_col))
+            }
+            _ => Err(anyhow!("Unsupported ALTER TABLE action: '{}'", action_kw)),
+        }
+    }
+
     pub fn execute(&self, query: &str, current_db: Option<&str>) -> Result<String> {
         self.execute_with_tenant(query, current_db, Some("default"))
     }
@@ -1047,17 +1309,23 @@ impl Executor {
             return Ok(serde_json::to_string_pretty(&tenants)?);
         }
 
-        // Row-Level Security (RLS) DDL Commands
-        if q_lower.starts_with("alter table ") && (q_lower.contains("enable row level security") || q_lower.contains("disable row level security")) {
-            let parts: Vec<&str> = query.trim().split_whitespace().collect();
-            if parts.len() >= 6 {
-                let table_name = clean_ident(parts[2]);
-                let is_enable = q_lower.contains("enable row level security");
-                self.tenant_manager.set_rls_enabled(&table_name, is_enable);
-                let db_pfx = current_db.unwrap_or("default");
-                self.tenant_manager.set_rls_enabled(&format!("{}_{}", db_pfx, table_name), is_enable);
-                let action = if is_enable { "enabled" } else { "disabled" };
-                return Ok(format!("Row-level security {} for table '{}'", action, table_name));
+        // ALTER TABLE DDL Commands (RLS, Column Alterations: ADD / DROP / CHANGE / MODIFY / RENAME)
+        if q_lower.starts_with("alter table ") {
+            if q_lower.contains("enable row level security") || q_lower.contains("disable row level security") {
+                let parts: Vec<&str> = query.trim().split_whitespace().collect();
+                if parts.len() >= 6 {
+                    let table_name = clean_ident(parts[2]);
+                    let is_enable = q_lower.contains("enable row level security");
+                    self.tenant_manager.set_rls_enabled(&table_name, is_enable);
+                    let db_pfx = current_db.unwrap_or("default");
+                    self.tenant_manager.set_rls_enabled(&format!("{}_{}", db_pfx, table_name), is_enable);
+                    let action = if is_enable { "enabled" } else { "disabled" };
+                    return Ok(format!("Row-level security {} for table '{}'", action, table_name));
+                }
+            } else if q_lower.contains(" reembed") {
+                // falls through to vector re-embed below
+            } else {
+                return self.handle_alter_table_columns(query, current_db);
             }
         }
 
@@ -1140,12 +1408,95 @@ impl Executor {
         
         // MVP Custom Syntax Interception for Admin Commands
         if q_lower.starts_with("create database ") {
-            let parts: Vec<&str> = query.trim().split_whitespace().collect();
+            let trimmed = query.trim().trim_end_matches(';').trim();
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
             if parts.len() >= 3 {
-                let db_name = clean_ident(parts[2].trim_matches(';'));
+                let mut name_idx = 2;
+                let mut if_not_exists = false;
+
+                if parts.len() >= 6
+                    && parts[2].eq_ignore_ascii_case("if")
+                    && parts[3].eq_ignore_ascii_case("not")
+                    && parts[4].eq_ignore_ascii_case("exists")
+                {
+                    if_not_exists = true;
+                    name_idx = 5;
+                }
+
+                if name_idx >= parts.len() {
+                    return Err(anyhow!("Syntax error: expected database name after CREATE DATABASE"));
+                }
+
+                let db_name = clean_ident(parts[name_idx].trim_matches(';'));
+                if db_name.is_empty() {
+                    return Err(anyhow!("Database name cannot be empty"));
+                }
+
+                if if_not_exists {
+                    if let Ok(Some(true)) = self.storage.get::<bool>("_databases", &db_name) {
+                        return Ok(format!("Database '{}' already exists (skipped)", db_name));
+                    }
+                }
+                
+                // Parse optional DBID and TYPE
+                let mut explicit_dbid: Option<String> = None;
+                let mut explicit_type: Option<String> = None;
+
+                let lower_trimmed = trimmed.to_lowercase();
+                if let Some(pos) = lower_trimmed.find("dbid ") {
+                    let rem = &trimmed[pos + 5..].trim_start();
+                    let val = rem.split_whitespace().next().unwrap_or("").trim_matches('\'').trim_matches('"').trim_matches(';');
+                    if !val.is_empty() {
+                        explicit_dbid = Some(val.to_string());
+                    }
+                } else if let Some(pos) = lower_trimmed.find("dbid=") {
+                    let rem = &trimmed[pos + 5..].trim_start();
+                    let val = rem.split_whitespace().next().unwrap_or("").trim_matches('\'').trim_matches('"').trim_matches(';');
+                    if !val.is_empty() {
+                        explicit_dbid = Some(val.to_string());
+                    }
+                }
+
+                if let Some(pos) = lower_trimmed.find("type ") {
+                    let rem = &trimmed[pos + 5..].trim_start();
+                    let val = rem.split_whitespace().next().unwrap_or("").trim_matches('\'').trim_matches('"').trim_matches(';');
+                    if !val.is_empty() {
+                        explicit_type = Some(val.to_string());
+                    }
+                } else if let Some(pos) = lower_trimmed.find("type=") {
+                    let rem = &trimmed[pos + 5..].trim_start();
+                    let val = rem.split_whitespace().next().unwrap_or("").trim_matches('\'').trim_matches('"').trim_matches(';');
+                    if !val.is_empty() {
+                        explicit_type = Some(val.to_string());
+                    }
+                }
+
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+
+                let db_id = explicit_dbid.unwrap_or_else(|| {
+                    let millis = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis();
+                    format!("db_{:x}", millis % 0xffffffff)
+                });
+
+                let workload_type = explicit_type.unwrap_or_else(|| "sql".to_string());
+
+                let meta = DatabaseMetadata {
+                    db_id: db_id.clone(),
+                    name: db_name.clone(),
+                    workload_type,
+                    created_at: now,
+                };
+
                 self.storage.set("_databases", &db_name, &true)?;
+                self.storage.set("_database_metadata", &db_name, &meta)?;
                 self.storage.flush()?;
-                return Ok(format!("Database '{}' created successfully", db_name));
+                return Ok(format!("Database '{}' (ID: {}) created successfully", db_name, db_id));
             }
         }
 
@@ -1495,7 +1846,33 @@ impl Executor {
         if q_lower.starts_with("drop database ") {
             let parts: Vec<&str> = query.trim().split_whitespace().collect();
             if parts.len() >= 3 {
-                let db_name = clean_ident(parts[2].trim_matches(';'));
+                let mut name_idx = 2;
+                let mut if_exists = false;
+
+                if parts.len() >= 5
+                    && parts[2].eq_ignore_ascii_case("if")
+                    && parts[3].eq_ignore_ascii_case("exists")
+                {
+                    if_exists = true;
+                    name_idx = 4;
+                }
+
+                if name_idx >= parts.len() {
+                    return Err(anyhow!("Syntax error: expected database name after DROP DATABASE"));
+                }
+
+                let db_name = clean_ident(parts[name_idx].trim_matches(';'));
+                if db_name == "default" {
+                    return Err(anyhow!("Cannot drop system database 'default'"));
+                }
+
+                if if_exists {
+                    if let Ok(exists) = self.storage.get::<bool>("_databases", &db_name) {
+                        if !exists.unwrap_or(false) {
+                            return Ok(format!("Database '{}' does not exist (skipped)", db_name));
+                        }
+                    }
+                }
                 
                 // Clean up all tables associated with this database
                 let prefix = format!("{}_", db_name);
@@ -1510,6 +1887,7 @@ impl Executor {
                     }
                 }
                 
+                let _ = self.storage.delete("_database_metadata", &db_name);
                 self.storage.delete("_databases", &db_name)?;
                 self.storage.flush()?;
                 return Ok(format!("Database '{}' dropped successfully", db_name));
@@ -1569,7 +1947,13 @@ impl Executor {
             let mut user_list = Vec::new();
             for username in user_keys {
                 if let Ok(Some(user)) = self.storage.get::<crate::auth::User>("_users", &username) {
-                    let roles_str: Vec<String> = user.roles.iter().map(|r| format!("{:?}", r)).collect();
+                    let mut roles_str: Vec<String> = Vec::new();
+                    for r in &user.roles {
+                        let formatted = format!("{:?}", r);
+                        if !roles_str.contains(&formatted) {
+                            roles_str.push(formatted);
+                        }
+                    }
                     user_list.push(serde_json::json!({
                         "User": user.username,
                         "Host": user.allowed_ip,
@@ -1609,6 +1993,14 @@ impl Executor {
                         } else {
                             crate::auth::Role::DatabaseAdmin(db_name.clone())
                         };
+
+                        // Remove any existing role for the same target database before adding updated role
+                        user.roles.retain(|r| match r {
+                            crate::auth::Role::DatabaseAdmin(db) => db != &db_name,
+                            crate::auth::Role::ReadWrite(db) => db != &db_name,
+                            crate::auth::Role::ReadOnly(db) => db != &db_name,
+                            crate::auth::Role::MainAdmin => true,
+                        });
                     
                         user.roles.push(role);
                         self.storage.set("_users", &username, &user)?;
@@ -1629,7 +2021,7 @@ impl Executor {
             if let (Some(on_pos), Some(from_pos)) = (on_idx, from_idx) {
                 if on_pos > 1 && from_pos > on_pos + 1 && parts.len() > from_pos + 1 {
                     let perm = parts[1..on_pos].join(" ").to_uppercase();
-                    let db_name = parts[on_pos + 1].trim_matches(';').trim_matches('\'').trim_matches('"').to_string();
+                    let raw_db = parts[on_pos + 1].trim_matches(';').trim_matches('\'').trim_matches('"');
                     let raw_user = parts[from_pos + 1].trim_matches(';').trim_matches('\'').trim_matches('"');
                     let username = if let Some(at_idx) = raw_user.find('@') {
                         raw_user[..at_idx].trim_matches('\'').trim_matches('"').to_string()
@@ -1637,13 +2029,34 @@ impl Executor {
                         raw_user.to_string()
                     };
 
+                    let db_name = raw_db.to_string();
+                    let target_prefix = raw_db.trim_end_matches(".*").trim_end_matches(".%");
+
                     if let Ok(Some(mut user)) = self.storage.get::<crate::auth::User>("_users", &username) {
                         user.roles.retain(|r| match r {
-                            crate::auth::Role::MainAdmin => false,
-                            crate::auth::Role::DatabaseAdmin(db) => db != &db_name,
-                            crate::auth::Role::ReadWrite(db) => db != &db_name,
-                            crate::auth::Role::ReadOnly(db) => db != &db_name,
+                            crate::auth::Role::DatabaseAdmin(db) => {
+                                let d = db.trim_end_matches(".*").trim_end_matches(".%");
+                                d != target_prefix && db != &db_name && (target_prefix != "*" || (db != "*.*" && db != "*"))
+                            }
+                            crate::auth::Role::ReadWrite(db) => {
+                                let d = db.trim_end_matches(".*").trim_end_matches(".%");
+                                d != target_prefix && db != &db_name && (target_prefix != "*" || (db != "*.*" && db != "*"))
+                            }
+                            crate::auth::Role::ReadOnly(db) => {
+                                let d = db.trim_end_matches(".*").trim_end_matches(".%");
+                                d != target_prefix && db != &db_name && (target_prefix != "*" || (db != "*.*" && db != "*"))
+                            }
+                            crate::auth::Role::MainAdmin => {
+                                if target_prefix == "*" || target_prefix == "*.*" || perm == "ALL" || perm == "ALL PRIVILEGES" {
+                                    false
+                                } else {
+                                    true
+                                }
+                            }
                         });
+                        if target_prefix == "*" || target_prefix == "*.*" {
+                            user.rbac_roles.retain(|r| r != "SuperAdmin");
+                        }
                         self.storage.set("_users", &username, &user)?;
                         self.storage.flush()?;
                         return Ok(format!("Revoked {} permissions on {} from {}", perm, db_name, username));
@@ -1759,6 +2172,57 @@ impl Executor {
                 let full_table_name = format!("{}_{}", current_db.unwrap_or("public"), table_name);
                 self.index_manager.drop_index(&full_table_name, &fields)?;
                 return Ok(format!("Index dropped on {}({})", table_name, fields.join(", ")));
+            }
+        }
+
+        if q_lower.starts_with("show database metadata") || q_lower.starts_with("show databases extended") {
+            let mut dbs = self.storage.get_keys_by_prefix("_databases", "")?;
+            if !dbs.contains(&"default".to_string()) {
+                dbs.insert(0, "default".to_string());
+            }
+
+            let mut all_meta = Vec::new();
+            for db in dbs {
+                let meta = if let Ok(Some(m)) = self.storage.get::<DatabaseMetadata>("_database_metadata", &db) {
+                    m
+                } else {
+                    let db_id = if db == "default" {
+                        "db_default_001".to_string()
+                    } else {
+                        format!("db_{:x}", db.as_bytes().iter().fold(0u32, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u32)))
+                    };
+                    DatabaseMetadata {
+                        db_id,
+                        name: db.clone(),
+                        workload_type: "sql".to_string(),
+                        created_at: 0,
+                    }
+                };
+                all_meta.push(meta);
+            }
+            return Ok(serde_json::to_string_pretty(&all_meta)?);
+        }
+
+        if q_lower.starts_with("show database info ") {
+            let parts: Vec<&str> = query.trim().split_whitespace().collect();
+            if parts.len() >= 4 {
+                let target_db = clean_ident(parts[3].trim_matches(';'));
+                let meta = if let Ok(Some(m)) = self.storage.get::<DatabaseMetadata>("_database_metadata", &target_db) {
+                    m
+                } else {
+                    let db_id = if target_db == "default" {
+                        "db_default_001".to_string()
+                    } else {
+                        format!("db_{:x}", target_db.as_bytes().iter().fold(0u32, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u32)))
+                    };
+                    DatabaseMetadata {
+                        db_id,
+                        name: target_db.clone(),
+                        workload_type: "sql".to_string(),
+                        created_at: 0,
+                    }
+                };
+                return Ok(serde_json::to_string_pretty(&meta)?);
             }
         }
 
@@ -2085,10 +2549,15 @@ impl Executor {
                                 
                                 let val_str = match val {
                                     Expr::Value(Value::SingleQuotedString(s)) => s.clone(),
+                                    Expr::Value(Value::DoubleQuotedString(s)) => s.clone(),
                                     Expr::Value(Value::Number(n, _)) => n.clone(),
                                     Expr::Value(Value::Boolean(b)) => b.to_string(),
                                     Expr::Value(Value::Null) => "null".to_string(),
-                                    _ => "unknown".to_string(),
+                                    Expr::Identifier(ident) => ident.value.clone(),
+                                    _ => {
+                                        let s = val.to_string();
+                                        s.trim_matches('\'').trim_matches('"').to_string()
+                                    }
                                 };
                                 user_provided.insert(col_name, val_str);
                             }
@@ -2163,6 +2632,12 @@ impl Executor {
                             
                             let id = primary_key_val.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
                             row._id = id.clone();
+                            for col in &schema.columns {
+                                if col.is_primary {
+                                    row.columns.entry(col.name.clone()).or_insert_with(|| id.clone());
+                                }
+                            }
+                            row.columns.entry("id".to_string()).or_insert_with(|| id.clone());
                             self.storage.set(&full_table_name, &id, &row)?;
                             self.columnar_engine.insert_row(&table, &row.columns);
                             self.columnar_engine.insert_row(&full_table_name, &row.columns);
@@ -2248,9 +2723,14 @@ impl Executor {
                         if Some(&col) == pk_col.as_ref() {
                             search_val = match &**right {
                                 Expr::Value(Value::SingleQuotedString(s)) => s.clone(),
+                                Expr::Value(Value::DoubleQuotedString(s)) => s.clone(),
                                 Expr::Value(Value::Number(n, _)) => n.clone(),
                                 Expr::Value(Value::Boolean(b)) => b.to_string(),
-                                _ => right.to_string(),
+                                Expr::Identifier(ident) => ident.value.clone(),
+                                _ => {
+                                    let s = right.to_string();
+                                    s.trim_matches('\'').trim_matches('"').to_string()
+                                }
                             };
                             is_pk_lookup = true;
                         }
@@ -2265,10 +2745,15 @@ impl Executor {
                         let col_name = assignment.id[0].value.clone();
                         let new_val = match &assignment.value {
                             Expr::Value(Value::SingleQuotedString(s)) => s.clone(),
+                            Expr::Value(Value::DoubleQuotedString(s)) => s.clone(),
                             Expr::Value(Value::Number(n, _)) => n.clone(),
                             Expr::Value(Value::Boolean(b)) => b.to_string(),
                             Expr::Value(Value::Null) => "null".to_string(),
-                            _ => assignment.value.to_string(),
+                            Expr::Identifier(ident) => ident.value.clone(),
+                            _ => {
+                                let s = assignment.value.to_string();
+                                s.trim_matches('\'').trim_matches('"').to_string()
+                            }
                         };
                         row.columns.insert(col_name.clone(), new_val.clone());
                     }
@@ -2337,6 +2822,14 @@ impl Executor {
                     }
                     
                     self.storage.set(&full_table_name, key, row)?;
+                    let _ = self.cdc_streamer.emit(
+                        db_prefix,
+                        &table_name,
+                        "UPDATE",
+                        key,
+                        Some(serde_json::to_value(&old_row.columns).unwrap_or_default()),
+                        Some(serde_json::to_value(&row.columns).unwrap_or_default()),
+                    );
                     updated_count += 1;
                     Ok(())
                 };
@@ -2400,9 +2893,14 @@ impl Executor {
                         if Some(&col) == pk_col.as_ref() {
                             search_val = match &**right {
                                 Expr::Value(Value::SingleQuotedString(s)) => s.clone(),
+                                Expr::Value(Value::DoubleQuotedString(s)) => s.clone(),
                                 Expr::Value(Value::Number(n, _)) => n.clone(),
                                 Expr::Value(Value::Boolean(b)) => b.to_string(),
-                                _ => right.to_string(),
+                                Expr::Identifier(ident) => ident.value.clone(),
+                                _ => {
+                                    let s = right.to_string();
+                                    s.trim_matches('\'').trim_matches('"').to_string()
+                                }
                             };
                             is_pk_lookup = true;
                         }
@@ -3000,6 +3498,13 @@ impl Executor {
                         sqlparser::ast::AlterTableOperation::DropColumn { column_name, .. } => {
                             let col_to_drop = column_name.value.clone();
                             schema.columns.retain(|c| c.name != col_to_drop);
+                            if let Ok(all_rows) = self.get_rows_with_keys(&full_table_name) {
+                                for (id, mut row) in all_rows {
+                                    if row.columns.remove(&col_to_drop).is_some() {
+                                        let _ = self.storage.set(&full_table_name, &id, &row);
+                                    }
+                                }
+                            }
                         }
                         sqlparser::ast::AlterTableOperation::ChangeColumn { old_name, new_name, data_type, options, .. } => {
                             let old_col = old_name.value.clone();
@@ -3054,13 +3559,17 @@ impl Executor {
                                 }
                             }
                             
-                            // To be fully correct, we should also update all existing rows
-                            // to rename the key in their HashMap from old_name to new_name.
-                            // But since Sled is Schemaless KV, the frontend will just see 
-                            // `null` for the new column name on old rows until they are updated,
-                            // unless we migrate the data. Let's do a quick migration of rows!
-                            // For MVP, updating the schema is enough for the UI to show the new column.
-                            // Updating data keys would require fetching the primary key for each row.
+                            // Migrate column key across all existing rows
+                            if old_col != new_col {
+                                if let Ok(all_rows) = self.get_rows_with_keys(&full_table_name) {
+                                    for (id, mut row) in all_rows {
+                                        if let Some(val) = row.columns.remove(&old_col) {
+                                            row.columns.insert(new_col.clone(), val);
+                                            let _ = self.storage.set(&full_table_name, &id, &row);
+                                        }
+                                    }
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -3702,6 +4211,31 @@ fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_create_and_drop_database_if_not_exists() -> Result<()> {
+        let storage = StorageEngine::new_temp()?;
+        let executor = Executor::new(storage.clone());
+
+        // 1. CREATE DATABASE IF NOT EXISTS must create 'my_tenant_db', NOT 'IF'
+        let res = executor.execute("CREATE DATABASE IF NOT EXISTS my_tenant_db;", None)?;
+        assert!(res.contains("my_tenant_db"));
+        assert!(!res.contains("Database 'IF'"));
+        assert_eq!(storage.get::<bool>("_databases", "my_tenant_db")?, Some(true));
+        assert_eq!(storage.get::<bool>("_databases", "IF")?, None);
+
+        // 2. Re-running must be safely skipped
+        let res2 = executor.execute("CREATE DATABASE IF NOT EXISTS my_tenant_db;", None)?;
+        assert!(res2.contains("already exists"));
+
+        // 3. DROP DATABASE IF EXISTS must drop 'my_tenant_db', NOT 'IF'
+        let res3 = executor.execute("DROP DATABASE IF EXISTS my_tenant_db;", None)?;
+        assert!(res3.contains("'my_tenant_db' dropped successfully"), "Actual was: {}", res3);
+        assert_eq!(storage.get::<bool>("_databases", "my_tenant_db")?, None);
+        assert_eq!(storage.get::<bool>("_databases", "my_tenant_db")?, None);
+
+        Ok(())
+    }
 
     #[test]
     fn test_clean_ident() {

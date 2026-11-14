@@ -1,0 +1,42 @@
+1:"$Sreact.fragment"
+2:"static/chunks/app/layout-7f87ae86e5ba4b71.js"
+3:I[2593,["177","$2"],""]
+4:I[8422,["177","$2"],"ThemeProvider"]
+5:I[7121,[],""]
+6:"static/chunks/app/error-58d779181de4b0ab.js"
+7:I[7267,["39","$6"],"default"]
+8:I[4581,[],""]
+9:"static/chunks/758-bd7e7f765e29e616.js"
+a:"static/chunks/app/not-found-d8ac1c70ab829955.js"
+b:I[7145,["758","$9","345","$a"],"default"]
+d:"static/chunks/618-3bc4cccce7c9358d.js"
+e:"static/chunks/918-94bea3d684d0e5f5.js"
+f:"static/chunks/342-6f6ba49db80968fe.js"
+10:"static/chunks/app/(panel)/layout-af588573b5b0d701.js"
+11:I[1508,["758","$9","618","$d","918","$e","342","$f","211","$10"],"PanelShell"]
+16:I[1304,[],"ClientPageRoot"]
+17:"static/chunks/312-4e57dd2804661d82.js"
+18:"static/chunks/app/(panel)/table/new/page-f08a98799725fe37.js"
+19:I[3126,["758","$9","918","$e","312","$17","602","$18"],"default"]
+1c:I[484,[],"OutletBoundary"]
+1d:"$Sreact.suspense"
+1f:"ViewportBoundary"
+20:I[484,[],"$1f"]
+22:"MetadataBoundary"
+23:I[484,[],"$22"]
+25:"static/chunks/app/global-error-7874b5691177fd7e.js"
+26:I[6719,["219","$25"],"default"]
+:HL["/myadmin/_next/static/css/770453c50af63dfd.css","style"]
+13:X
+15:[["children",{"s":"__PAGE__","h":512,"d":{"r":["$","$1","c",{"children":[["$","$L16",null,{"Component":"$19","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@1a","$@1b"]}}],null,["$","$L1c",null,{"children":["$","$1d",null,{"name":"Next.MetadataOutlet","children":"$@1e"}]}]]}],"p":false,"v":null}}]]
+14:[["children",{"s":"new","h":512,"d":{"r":["$","$1","c",{"children":[null,["$","$L5",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L8",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],"p":false,"v":"$13"},"c":"$Q15"}]]
+12:[["children",{"s":"table","h":512,"d":{"r":["$","$1","c",{"children":[null,["$","$L5",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L8",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],"p":false,"v":"$13"},"c":"$Q14"}]]
+c:[["children",{"s":"(panel)","h":512,"d":{"r":["$","$1","c",{"children":[null,["$","$L11",null,{"children":["$","$L5",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L8",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]}]]}],"p":false,"v":null},"c":"$Q12"}]]
+0:{"P":null,"c":["","table","new",""],"q":"","i":false,"t":{"t":{"s":"","h":528,"d":{"r":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/myadmin/_next/static/css/770453c50af63dfd.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]],["$","html",null,{"lang":"en","suppressHydrationWarning":true,"children":["$","body",null,{"className":"min-h-screen bg-slate-50 text-slate-900 dark:bg-[#090d16] dark:text-slate-100 antialiased selection:bg-blue-600 selection:text-white","children":[["$","$L3",null,{"id":"theme-initializer","strategy":"beforeInteractive","dangerouslySetInnerHTML":{"__html":"\n              try {\n                var theme = localStorage.getItem('pingdart_theme') || 'light';\n                var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);\n                if (isDark) {\n                  document.documentElement.classList.add('dark');\n                } else {\n                  document.documentElement.classList.remove('dark');\n                }\n              } catch (e) {}\n            "}}],["$","$L4",null,{"children":["$","$L5",null,{"parallelRouterKey":"children","error":"$7","errorStyles":[],"errorScripts":null,"template":["$","$L8",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","$Lb",null,{}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}]]}]}]]}],"p":false,"v":null},"c":"$Qc"},"h":{"r":["$","$1","h",{"children":[null,["$","$L20",null,{"children":"$L21"}],["$","$L23",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$1d",null,{"name":"Next.Metadata","children":"$L24"}]}],null]}],null]}],"p":false,"v":null}},"m":"$undefined","G":["$26",[]],"S":true,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"PLpqJsvmOpaIzvZo0_upT"}
+13:C
+1a:{}
+1b:"$15:0:1:d:r:props:children:0:props:serverProvidedParams:params"
+21:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+27:I[6869,[],"IconMark"]
+1e:null
+24:[["$","title","0",{"children":"PingDart MyAdmin | ClusterDB Control Panel"}],["$","meta","1",{"name":"description","content":"Web-based Database Management Panel for PingDart AI-Native ClusterDB"}],["$","link","2",{"rel":"icon","href":"/myadmin/favicon.ico?2fcec229a6f8b52f","type":"image/x-icon","sizes":"16x16"}],["$","link","3",{"rel":"icon","href":"/myadmin/icon.svg?d140d7cdf427b2c0","type":"image/svg+xml","sizes":"any"}],["$","link","4",{"rel":"apple-touch-icon","href":"/myadmin/apple-icon.png?ecdd72d8bc413da1","type":"image/png","sizes":"180x180"}],["$","$L27","5",{}]]

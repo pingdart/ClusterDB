@@ -23,6 +23,7 @@ impl StorageEngine {
         let db = sled::Config::new()
             .path(path)
             .cache_capacity(1_024 * 1_024 * 1_024) // 1GB Memory Cache for O(1) Lookups
+            .flush_every_ms(Some(500)) // Guarantee periodic WAL flush to disk every 500ms
             .open()
             .context("Failed to open sled database")?;
         Ok(Self { db })
@@ -52,6 +53,7 @@ impl StorageEngine {
         let tree = self.db.open_tree(table)?;
         let encoded: Vec<u8> = bincode::serialize(value).context("Failed to serialize value")?;
         tree.insert(key.as_bytes(), encoded)?;
+        let _ = self.db.flush();
         Ok(())
     }
 
@@ -105,6 +107,7 @@ impl StorageEngine {
     pub fn insert_raw(&self, table: &str, key: &[u8], bytes: &[u8]) -> Result<()> {
         let tree = self.db.open_tree(table)?;
         tree.insert(key, bytes)?;
+        let _ = self.db.flush();
         Ok(())
     }
 
@@ -134,6 +137,7 @@ impl StorageEngine {
     pub fn delete(&self, table: &str, key: &str) -> Result<()> {
         let tree = self.db.open_tree(table)?;
         tree.remove(key.as_bytes())?;
+        let _ = self.db.flush();
         Ok(())
     }
 
@@ -145,7 +149,9 @@ impl StorageEngine {
 
     /// Drops an entire tree
     pub fn drop_tree(&self, table: &str) -> Result<bool> {
-        self.db.drop_tree(table).context("Failed to drop tree")
+        let res = self.db.drop_tree(table).context("Failed to drop tree")?;
+        let _ = self.db.flush();
+        Ok(res)
     }
 
     /// Flushes all changes to disk

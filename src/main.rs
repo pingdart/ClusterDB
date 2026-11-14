@@ -22,6 +22,7 @@ pub mod migration;
 pub mod wal;
 pub mod mvcc;
 pub mod pgwire;
+pub mod mysqlwire;
 pub mod realtime;
 pub mod api;
 use anyhow::Result;
@@ -53,7 +54,11 @@ fn load_env_file() {
 #[tokio::main]
 async fn main() -> Result<()> {
     load_env_file();
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .without_time()
+        .with_target(false)
+        .compact()
+        .init();
     
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 && args[1] == "benchmark" {
@@ -64,7 +69,13 @@ async fn main() -> Result<()> {
     let mut port: u16 = 4650;
     let mut node_id: Option<String> = None;
     let mut join_seed: Option<String> = None;
-    let mut data_dir = "pingdart_data".to_string();
+    let mut data_dir = std::env::var("PINGDART_DATA_DIR").unwrap_or_else(|_| {
+        if std::path::Path::new("Database/pingdart_data").exists() {
+            "Database/pingdart_data".to_string()
+        } else {
+            "pingdart_data".to_string()
+        }
+    });
 
     let mut i = 1;
     while i < args.len() {
@@ -128,8 +139,11 @@ async fn main() -> Result<()> {
         i += 1;
     }
 
-    info!("PingDart Core Engine Starting on port {} (Node: {:?})...", port, node_id);
-    
+    println!(
+        "\x1b[36m\n  ____  _             ____             _     \n |  _ \\(_)_ __   __ _|  _ \\  __ _ _ __| |_   \n | |_) | | '_ \\ / _` | | | |/ _` | '__| __|  \n |  __/| | | | | (_| | |_| | (_| | |  | |_   \n |_|   |_|_| |_|\\__, |____/ \\__,_|_|   \\__|  PingDart ClusterDB v0.5.0\n                |___/                        \x1b[0m\n  \x1b[1m➜ HTTP API:\x1b[0m    http://0.0.0.0:{}\n  \x1b[1m➜ Web Panel:\x1b[0m   http://localhost:{}/myadmin/\n  \x1b[1m➜ Postgres:\x1b[0m    0.0.0.0:5432\n  \x1b[1m➜ Storage:\x1b[0m     ./{} (Sled WAL Sync)\n",
+        port, port, data_dir
+    );
+
     // Initialize storage in the configured data directory
     let db = storage::StorageEngine::new(&data_dir)?;
     info!("Storage engine initialized at ./{}", data_dir);
@@ -145,19 +159,80 @@ async fn main() -> Result<()> {
         .or_else(|_| std::env::var("ADMIN_PASSWORD"))
         .unwrap_or_else(|_| "RavindraChinnu12@".to_string());
 
-    // Initialize main admin user (ravi80181 with configured credentials)
-    let root_user = auth::User::new_root_with_name(&admin_user, admin_pass.clone());
-    db.set("_users", &root_user.username, &root_user)?;
-    info!("Main admin user '{}' initialized with configured credentials", root_user.username);
+    // Initialize main admin user if not already present, or preserve active session & permissions
+    let root_user = match db.get::<auth::User>("_users", &admin_user)? {
+        Some(mut existing) => {
+            // User exists in persistent storage: keep active token, tenants, and roles intact!
+            if !existing.verify_password(&admin_pass) {
+                existing.set_password(&admin_pass);
+                let _ = db.set("_users", &existing.username, &existing);
+            }
+            existing
+        }
+        None => {
+            let fresh = auth::User::new_root_with_name(&admin_user, admin_pass.clone());
+            db.set("_users", &fresh.username, &fresh)?;
+            fresh
+        }
+    };
+    info!("Main admin user '{}' initialized with configured credentials (active session preserved: {})", root_user.username, root_user.token.is_some());
 
-    // Also synchronize admin alias for backward compatibility
-    let admin_alias = auth::User::new_user(
-        "admin".to_string(),
-        admin_pass,
-        "%".to_string(),
-        vec![auth::Role::MainAdmin],
-    );
-    let _ = db.set("_users", &admin_alias.username, &admin_alias);
+    // Also synchronize admin alias for backward compatibility without overwriting existing session
+    if db.get::<auth::User>("_users", "admin")?.is_none() {
+        let admin_alias = auth::User::new_user(
+            "admin".to_string(),
+            admin_pass,
+            "%".to_string(),
+            vec![auth::Role::MainAdmin],
+        );
+        let _ = db.set("_users", &admin_alias.username, &admin_alias);
+    }
+
+    // Initialize or sync mounika user with credentials (preserving custom role grants & IP assignments)
+    let mounika_pass = "Ravindra12@".to_string();
+    match db.get::<auth::User>("_users", "mounika")? {
+        Some(mut existing) => {
+            let mut changed = false;
+            if !existing.verify_password(&mounika_pass) {
+                existing.set_password(&mounika_pass);
+                changed = true;
+            }
+            // Ensure mounika does not inherit global root or wildcard permissions
+            let initial_len = existing.roles.len();
+            existing.roles.retain(|r| match r {
+                auth::Role::MainAdmin => false,
+                auth::Role::DatabaseAdmin(pattern) if pattern == "*.*" || pattern == "*" => false,
+                _ => true,
+            });
+            if existing.roles.len() != initial_len {
+                changed = true;
+            }
+            if existing.roles.is_empty() {
+                existing.roles.push(auth::Role::DatabaseAdmin("meddylist.*".to_string()));
+                changed = true;
+            }
+            if changed {
+                let _ = db.set("_users", &existing.username, &existing);
+                let _ = db.flush();
+            }
+            if let Some(t) = &existing.token {
+                let _ = db.set("_tokens", t, &existing.username);
+            }
+        }
+        None => {
+            let mut fresh = auth::User::new_user(
+                "mounika".to_string(),
+                mounika_pass,
+                "%".to_string(),
+                vec![auth::Role::DatabaseAdmin("meddylist.*".to_string())],
+            );
+            let token = uuid::Uuid::new_v4().to_string();
+            fresh.token = Some(token.clone());
+            let _ = db.set("_users", &fresh.username, &fresh);
+            let _ = db.set("_tokens", &token, &fresh.username);
+        }
+    };
+    info!("User 'mounika' synchronized with persistent permissions");
 
     // Start HTTP API Gateway with clustering support
     server::start_server(db.clone(), port, node_id, join_seed).await?;
